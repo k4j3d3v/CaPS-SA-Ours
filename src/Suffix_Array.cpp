@@ -37,14 +37,6 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const idx
 
 
 template <typename T_idx_>
-Suffix_Array<T_idx_>::Suffix_Array(const Suffix_Array& other): Suffix_Array(other.T_, other.n_)
-{
-    std::memcpy(SA_, other.SA_, n_ * sizeof(idx_t));
-    std::memcpy(LCP_, other.LCP_, n_ * sizeof(idx_t));
-}
-
-
-template <typename T_idx_>
 Suffix_Array<T_idx_>::~Suffix_Array()
 {
     std::free(SA_);

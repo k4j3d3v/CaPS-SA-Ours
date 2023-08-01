@@ -133,8 +133,7 @@ public:
     // `max_context`.
     Suffix_Array(const char* T, idx_t n, idx_t subproblem_count = 0, idx_t max_context = 0);
 
-    // Copy constructs the suffix array object from `other`.
-    Suffix_Array(const Suffix_Array& other);
+    Suffix_Array(const Suffix_Array& other) = delete;
 
     ~Suffix_Array();
 
