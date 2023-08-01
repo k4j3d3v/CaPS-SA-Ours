@@ -180,7 +180,8 @@ inline T_idx_ Suffix_Array<T_idx_>::lcp_opt_avx(const char* str1, const char* st
       __m256i v2 = _mm256_loadu_si256((__m256i*)(str2 + i));
       __m256i cmp = _mm256_cmpeq_epi8(v1, v2);
       int mask = _mm256_movemask_epi8(cmp);
-      if (mask != 0xFFFFFFFF) {
+      constexpr int eq_mask = 0xFFFFFFFF;
+      if(mask != eq_mask) {
         int j = __builtin_ctz(~mask) + i;
         return static_cast<idx_t>(j);
       }
