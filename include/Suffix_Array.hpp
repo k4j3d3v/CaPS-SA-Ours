@@ -27,16 +27,24 @@ private:
 
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
+
     idx_t* const SA_;   // The suffix array.
     idx_t* const LCP_;  // The LCP array.
+
     idx_t* SA_w;    // Working space for the SA construction.
     idx_t* LCP_w;   // Working space for the LCP construction.
+
+    const bool ext_mem_;  // Whether to construct using external-memory or not.
+
     const idx_t p_; // Count of subproblems used in construction.
+
     const idx_t max_context;    // Maximum prefix-context length for comparing suffixes.
+
     idx_t* pivot_;  // Pivots for the global suffix array.
     const idx_t pivot_per_part_;    // Number of pivots to sample per subarray.
     idx_t* part_size_scan_; // Inclusive scan (prefix sum) of the sizes of the pivoted final partitions containing appropriate sorted sub-subarrays.
     idx_t* part_ruler_; // "Ruler" for the partitions—contains the indices of each sub-subarray in each partition.
+
     std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved in some step.
 
     static constexpr idx_t default_subproblem_count = 8192; // Default subproblem-count to use in construction.
@@ -127,11 +135,12 @@ private:
 public:
 
     // Constructs a suffix array object for the input text `T` of size
-    // `n`. Optionally, the number of subproblems to decompose the original
+    // `n`. External-memory is used for construction if `ext_mem` is specified.
+    // Optionally, the number of subproblems to decompose the original
     // construction problem into can be provided with `subproblem_count`, and
     // the maximum prefix-context length for the suffixes can be bounded by
     // `max_context`.
-    Suffix_Array(const char* T, idx_t n, idx_t subproblem_count = 0, idx_t max_context = 0);
+    Suffix_Array(const char* T, idx_t n, bool ext_mem = false, idx_t subproblem_count = 0, idx_t max_context = 0);
 
     Suffix_Array(const Suffix_Array& other) = delete;
 

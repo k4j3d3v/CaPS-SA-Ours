@@ -14,13 +14,14 @@ namespace CaPS_SA
 {
 
 template <typename T_idx_>
-Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const idx_t subproblem_count, const idx_t max_context):
+Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const bool ext_mem, const idx_t subproblem_count, const idx_t max_context):
     T_(T),
     n_(n),
     SA_(allocate<idx_t>(n_)),
     LCP_(allocate<idx_t>(n_)),
     SA_w(nullptr),
     LCP_w(nullptr),
+    ext_mem_(ext_mem),
     p_(subproblem_count > 0 ? subproblem_count : default_subproblem_count),
     max_context(max_context ? max_context : n_),
     pivot_(nullptr),
