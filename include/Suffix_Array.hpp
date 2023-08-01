@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <atomic>
+#include <vector>
 #include <cstdlib>
 #include <chrono>
 #include <immintrin.h>
@@ -28,15 +29,23 @@ private:
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
 
+    const idx_t p_; // Count of subproblems used in construction.
+
+    const idx_t per_worker_in_mem_elem; // Maximum number of elements for each worker to keep in memory in external-memory setting.
+
     idx_t* const SA_;   // The suffix array.
     idx_t* const LCP_;  // The LCP array.
+
+    std::vector<idx_t*> SA_buf; // Memory-buffer for suffix array elements for worker threads in external-memory setting.
+    std::vector<idx_t*> LCP_buf;  // Memory-buffer for LCP array elements for worker threads in external-memory setting.
 
     idx_t* SA_w;    // Working space for the SA construction.
     idx_t* LCP_w;   // Working space for the LCP construction.
 
-    const bool ext_mem_;  // Whether to construct using external-memory or not.
+    std::vector<idx_t*> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
+    std::vector<idx_t*> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
 
-    const idx_t p_; // Count of subproblems used in construction.
+    const bool ext_mem_;  // Whether to construct using external-memory or not.
 
     const idx_t max_context;    // Maximum prefix-context length for comparing suffixes.
 

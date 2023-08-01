@@ -17,12 +17,13 @@ template <typename T_idx_>
 Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const bool ext_mem, const idx_t subproblem_count, const idx_t max_context):
     T_(T),
     n_(n),
-    SA_(allocate<idx_t>(n_)),
-    LCP_(allocate<idx_t>(n_)),
+    p_(subproblem_count > 0 ? subproblem_count : default_subproblem_count),
+    per_worker_in_mem_elem(!ext_mem ? 0 : 2 * static_cast<idx_t>(std::ceil(n_ / p_))),
+    SA_(!ext_mem ? allocate<idx_t>(n_) : nullptr),
+    LCP_(!ext_mem ? allocate<idx_t>(n_) : nullptr),
     SA_w(nullptr),
     LCP_w(nullptr),
     ext_mem_(ext_mem),
-    p_(subproblem_count > 0 ? subproblem_count : default_subproblem_count),
     max_context(max_context ? max_context : n_),
     pivot_(nullptr),
     pivot_per_part_(p_ - 1),
@@ -40,8 +41,15 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
 template <typename T_idx_>
 Suffix_Array<T_idx_>::~Suffix_Array()
 {
-    std::free(SA_);
-    std::free(LCP_);
+    if(!ext_mem_)
+        std::free(SA_),
+        std::free(LCP_);
+    else
+        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+            std::free(SA_buf[w_id]),
+            std::free(LCP_buf[w_id]),
+            std::free(SA_w_buf[w_id]),
+            std::free(LCP_w_buf[w_id]);
 }
 
 
@@ -132,8 +140,19 @@ void Suffix_Array<T_idx_>::initialize()
 {
     const auto t_s = now();
 
-    SA_w = allocate<idx_t>(n_); // Working space for the SA construction.
-    LCP_w = allocate<idx_t>(n_);    // Working space for the LCP construction.
+    if(!ext_mem_)
+    {
+        SA_w = allocate<idx_t>(n_);
+        LCP_w = allocate<idx_t>(n_);
+    }
+    else
+    {
+        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+            SA_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            LCP_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            SA_w_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            LCP_w_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem));
+    }
 
     const auto sample_count = p_ * pivot_per_part_;
     pivot_ = allocate<idx_t>(sample_count);
