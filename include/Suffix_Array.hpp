@@ -49,8 +49,8 @@ private:
 
     const idx_t max_context;    // Maximum prefix-context length for comparing suffixes.
 
+    const idx_t sample_per_part_; // Number of pivots to sample per subarray.
     idx_t* pivot_;  // Pivots for the global suffix array.
-    const idx_t pivot_per_part_;    // Number of pivots to sample per subarray.
     idx_t* part_size_scan_; // Inclusive scan (prefix sum) of the sizes of the pivoted final partitions containing appropriate sorted sub-subarrays.
     idx_t* part_ruler_; // "Ruler" for the partitions—contains the indices of each sub-subarray in each partition.
 

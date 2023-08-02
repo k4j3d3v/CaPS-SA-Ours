@@ -25,8 +25,8 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     LCP_w(nullptr),
     ext_mem_(ext_mem),
     max_context(max_context ? max_context : n_),
+    sample_per_part_(static_cast<idx_t>(std::ceil(32.0 * std::log(n_)))),   // c \ln n
     pivot_(nullptr),
-    pivot_per_part_(p_ - 1),
     part_size_scan_(nullptr),
     part_ruler_(nullptr)
 {
@@ -154,7 +154,7 @@ void Suffix_Array<T_idx_>::initialize()
             LCP_w_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem));
     }
 
-    const auto sample_count = p_ * pivot_per_part_;
+    const auto sample_count = p_ * sample_per_part_;
     pivot_ = allocate<idx_t>(sample_count);
 
     const auto t_e = now();
@@ -205,14 +205,13 @@ void Suffix_Array<T_idx_>::select_pivots()
 {
     const auto t_s = now();
 
-    idx_t pivot_per_part_ = 32 * std::log(n_);  // c \ln n
-    const auto sample_count = p_ * pivot_per_part_; // Total number of samples to select pivots from.
+    const auto sample_count = p_ * sample_per_part_;    // Total number of samples to select pivots from.
     idx_t* const pivot_w = allocate<idx_t>(sample_count);   // Working space to sample pivots.
     const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
 
     for(idx_t i = 0; i < p_; ++i)
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
-                        pivot_per_part_, pivot_ + i * pivot_per_part_);
+                        sample_per_part_, pivot_ + i * sample_per_part_);
 
     auto const temp_1 = allocate<idx_t>(sample_count), temp_2 = allocate<idx_t>(sample_count);
 
