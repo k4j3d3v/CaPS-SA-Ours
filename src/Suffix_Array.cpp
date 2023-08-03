@@ -46,10 +46,10 @@ Suffix_Array<T_idx_>::~Suffix_Array()
         std::free(LCP_);
     else
         for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-            std::free(SA_buf[w_id]),
-            std::free(LCP_buf[w_id]),
-            std::free(SA_w_buf[w_id]),
-            std::free(LCP_w_buf[w_id]);
+            std::free(SA_buf[w_id].data),
+            std::free(LCP_buf[w_id].data),
+            std::free(SA_w_buf[w_id].data),
+            std::free(LCP_w_buf[w_id].data);
 }
 
 
@@ -148,10 +148,10 @@ void Suffix_Array<T_idx_>::initialize()
     else
     {
         for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-            SA_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            LCP_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            SA_w_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            LCP_w_buf.push_back(allocate<idx_t>(per_worker_in_mem_elem));
+            SA_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            LCP_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            SA_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            LCP_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem));
     }
 
     const auto sample_count = p_ * sample_per_part_;

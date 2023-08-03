@@ -17,6 +17,19 @@
 namespace CaPS_SA
 {
 
+
+template <typename T_>
+struct alignas(2 * L1_CACHE_LINE_SIZE)
+    Padded_Data
+{
+    T_ data;
+
+    Padded_Data(const T_ data):
+      data(data)
+    {}
+};
+
+
 // The Suffix Array (SA) and the Longest Common Prefix (LCP) array constructor
 // class for some given sequence.
 template <typename T_idx_>
@@ -25,6 +38,7 @@ class Suffix_Array
 private:
 
     typedef T_idx_ idx_t;   // Integer-type for indexing the input text.
+    typedef Padded_Data<idx_t*> th_local_buf_t; // Type of thread-local buffers.
 
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
@@ -36,14 +50,14 @@ private:
     idx_t* const SA_;   // The suffix array.
     idx_t* const LCP_;  // The LCP array.
 
-    std::vector<idx_t*> SA_buf; // Memory-buffer for suffix array elements for worker threads in external-memory setting.
-    std::vector<idx_t*> LCP_buf;  // Memory-buffer for LCP array elements for worker threads in external-memory setting.
+    std::vector<th_local_buf_t> SA_buf; // Memory-buffer for suffix array elements for worker threads in external-memory setting.
+    std::vector<th_local_buf_t> LCP_buf;  // Memory-buffer for LCP array elements for worker threads in external-memory setting.
 
     idx_t* SA_w;    // Working space for the SA construction.
     idx_t* LCP_w;   // Working space for the LCP construction.
 
-    std::vector<idx_t*> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
-    std::vector<idx_t*> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
+    std::vector<th_local_buf_t> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
+    std::vector<th_local_buf_t> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
 

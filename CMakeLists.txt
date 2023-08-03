@@ -26,6 +26,16 @@ set(WARNING_FLAGS -Wall -Wextra)
 set(OPTIMIZE_FLAGS -funroll-loops -march=native)
 
 
+# Set other compile-time definitions.
+execute_process(
+    COMMAND getconf LEVEL1_DCACHE_LINESIZE
+    COMMAND tr -d '\n'
+    OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
+)
+
+add_compile_definitions(L1_CACHE_LINE_SIZE=${L1_CACHE_LINE_SIZE})
+
+
 # Determine the thread library of the system.
 include(FindThreads)
 if(NOT Threads_FOUND)
