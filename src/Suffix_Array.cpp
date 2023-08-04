@@ -129,7 +129,7 @@ void Suffix_Array<T_idx_>::merge_sort(idx_t* const X, idx_t* const Y, const idx_
         const auto g = [&](){ merge_sort(Y + m, X + m, n - m, W + m, LCP + m); };
 
         m < nested_par_grain_size ?
-            (f(), g()) : parlay::par_do(f, g);
+            (f(), g()) : parlay::par_do(f, g, ext_mem_);
         merge(X, m, X + m, n - m, W, W + m, Y, LCP);
     }
 }
@@ -180,6 +180,40 @@ void Suffix_Array<T_idx_>::sort_subarrays()
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rSorted " << solved_ << " subarrays.";
+        };
+
+    solved_ = 0;
+    parlay::parallel_for(0, p_, sort_subarr, 1);
+    std::cerr << "\n";
+
+    const auto t_e = now();
+    std::cerr << "Sorted the subarrays independently. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
+void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
+{
+    const auto t_s = now();
+
+    const auto subarr_sz = n_ / p_; // Size of each subarray to sort independently.
+    const auto sort_subarr =
+        [&](const idx_t p_id)
+        {
+            const auto w_id = parlay::worker_id();
+            const auto range_beg = p_id * subarr_sz, len = subarr_sz + (p_id < p_ - 1 ? 0 : n_ % p_);
+            assert(len < per_worker_in_mem_elem);
+
+            const auto SA = SA_buf[w_id].data, SA_w = SA_w_buf[w_id].data, LCP = LCP_buf[w_id].data, LCP_w = LCP_w_buf[w_id].data;
+            for(std::size_t i = 0; i < len; ++i)
+                SA[i] = SA_w[i] = range_beg + i;
+
+            merge_sort(SA_w, SA, len, LCP, LCP_w);
+
+            if(++solved_ % 8 == 0)
+                std::cerr << "\rSorted " << solved_ << " subarrays.";
+
+            assert(is_sorted(SA, len));
         };
 
     solved_ = 0;
@@ -500,6 +534,8 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
     const auto t_start = now();
 
     initialize();
+
+    sort_subarrays_ext_mem();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";

@@ -109,6 +109,9 @@ private:
     // Sorts uniform-sized subarrays independently.
     void sort_subarrays();
 
+    // Sorts uniform-sized subarrays independently in external-memory setting.
+    void sort_subarrays_ext_mem();
+
     // Samples `m` pivots from the sorted suffix collection `X` of size `n`
     // into `P`.
     static void sample_pivots(const idx_t* X, idx_t n, idx_t m, idx_t* P);
