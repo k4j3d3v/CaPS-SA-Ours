@@ -14,7 +14,7 @@ namespace CaPS_SA
 {
 
 template <typename T_idx_>
-Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const bool ext_mem, const idx_t subproblem_count, const idx_t max_context):
+Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const bool ext_mem, const std::string& ext_mem_path, const idx_t subproblem_count, const idx_t max_context):
     T_(T),
     n_(n),
     p_(subproblem_count > 0 ? subproblem_count : default_subproblem_count),
@@ -24,6 +24,7 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     SA_w(nullptr),
     LCP_w(nullptr),
     ext_mem_(ext_mem),
+    ext_mem_path(ext_mem_path),
     max_context(max_context ? max_context : n_),
     sample_per_part_(static_cast<idx_t>(std::ceil(32.0 * std::log(n_)))),   // c \ln n
     pivot_(nullptr),

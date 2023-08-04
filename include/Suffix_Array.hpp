@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <atomic>
 #include <vector>
+#include <string>
 #include <cstdlib>
 #include <chrono>
 #include <immintrin.h>
@@ -60,6 +61,8 @@ private:
     std::vector<th_local_buf_t> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
+
+    const std::string ext_mem_path; // External-memory path-prefix.
 
     const idx_t max_context;    // Maximum prefix-context length for comparing suffixes.
 
@@ -162,11 +165,12 @@ public:
 
     // Constructs a suffix array object for the input text `T` of size
     // `n`. External-memory is used for construction if `ext_mem` is specified.
+    // For the external-memory setting, the path-prefix `ext_mem_path` is used.
     // Optionally, the number of subproblems to decompose the original
     // construction problem into can be provided with `subproblem_count`, and
     // the maximum prefix-context length for the suffixes can be bounded by
     // `max_context`.
-    Suffix_Array(const char* T, idx_t n, bool ext_mem = false, idx_t subproblem_count = 0, idx_t max_context = 0);
+    Suffix_Array(const char* T, idx_t n, bool ext_mem = false, const std::string& ext_mem_path = ".", idx_t subproblem_count = 0, idx_t max_context = 0);
 
     Suffix_Array(const Suffix_Array& other) = delete;
 

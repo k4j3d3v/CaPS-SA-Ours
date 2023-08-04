@@ -51,8 +51,9 @@ int main(int argc, char* argv[])
 
     const std::string ip_path(argv[1]);
     const std::string op_path(argv[2]);
-    const std::size_t subproblem_count(argc >= 4 ? std::atoi(argv[3]) : 0);
-    const std::size_t max_context(argc >= 5 ? std::atoi(argv[4]) : 0);
+    const std::string ext_mem_path(argv[3]);
+    const std::size_t subproblem_count(argc >= 5 ? std::atoi(argv[4]) : 0);
+    const std::size_t max_context(argc >= 6 ? std::atoi(argv[5]) : 0);
 
     std::string text;
     read_input(ip_path, text);
@@ -63,14 +64,14 @@ int main(int argc, char* argv[])
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), true, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
         suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), true, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
         suf_arr.dump(output);
