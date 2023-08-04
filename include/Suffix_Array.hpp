@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <cstdlib>
+#include <utility>
 #include <chrono>
 #include <immintrin.h>
 #include <iostream>
@@ -25,8 +26,8 @@ struct alignas(2 * L1_CACHE_LINE_SIZE)
 {
     T_ data;
 
-    Padded_Data(const T_ data):
-      data(data)
+    Padded_Data(T_&& data):
+        data(std::move(data))
     {}
 };
 
