@@ -495,6 +495,18 @@ void Suffix_Array<T_idx_>::construct()
 
 
 template <typename T_idx_>
+void Suffix_Array<T_idx_>::construct_ext_mem()
+{
+    const auto t_start = now();
+
+    initialize();
+
+    const auto t_end = now();
+    std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::dump(std::ofstream& output)
 {
     const auto t_start = now();

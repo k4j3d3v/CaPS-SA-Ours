@@ -186,6 +186,9 @@ public:
     // Constructs the suffix array and the LCP array.
     void construct();
 
+    // Constructs the suffix array and the LCP array using external memory.
+    void construct_ext_mem();
+
     // Dumps the suffix array and the LCP array into the stream `output`.
     void dump(std::ofstream& output);
 };
