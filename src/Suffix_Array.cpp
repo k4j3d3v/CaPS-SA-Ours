@@ -248,14 +248,29 @@ void Suffix_Array<T_idx_>::select_pivots()
 {
     const auto t_s = now();
 
-    const auto sample_count = p_ * sample_per_part_;    // Total number of samples to select pivots from.
-    idx_t* const pivot_w = allocate<idx_t>(sample_count);   // Working space to sample pivots.
-    const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
+    collect_samples();
+    select_pivots_off_samples();
 
+    const auto t_e = now();
+    std::cerr << "Selected the global pivots. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
+void Suffix_Array<T_idx_>::collect_samples()
+{
+    const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
     for(idx_t i = 0; i < p_; ++i)
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
                         sample_per_part_, pivot_ + i * sample_per_part_);
+}
 
+
+template <typename T_idx_>
+void Suffix_Array<T_idx_>::select_pivots_off_samples()
+{
+    const auto sample_count = p_ * sample_per_part_;    // Total number of samples to select pivots from.
+    idx_t* const pivot_w = allocate<idx_t>(sample_count);   // Working space to sample pivots.
     auto const temp_1 = allocate<idx_t>(sample_count), temp_2 = allocate<idx_t>(sample_count);
 
     std::memcpy(pivot_w, pivot_, sample_count * sizeof(idx_t));
@@ -264,9 +279,6 @@ void Suffix_Array<T_idx_>::select_pivots()
     sample_pivots(pivot_w, sample_count, p_ - 1, pivot_);
 
     std::free(pivot_w), std::free(temp_1), std::free(temp_2);
-
-    const auto t_e = now();
-    std::cerr << "Selected the global pivots. Time taken: " << duration(t_e - t_s) << " seconds.\n";
 }
 
 

@@ -128,6 +128,12 @@ private:
     // Selects pivots for parallel merging of the sorted subarrays.
     void select_pivots();
 
+    // Collects samples from each sorted subarray.
+    void collect_samples();
+
+    // Selects the final pivot set from the sampled suffixes.
+    void select_pivots_off_samples();
+
     // Locates the positions (upper-bounds) of the selected pivots in the sorted
     // subarrays and flattens them in `P`. Besides these pivots, two flanking
     // pivots, `0` and `|X_i|`, for each subarray `X_i` are also placed.
