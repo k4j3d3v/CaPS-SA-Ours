@@ -223,6 +223,9 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
                 std::cerr << "\rSorted " << solved_ << " subarrays.";
 
             assert(is_sorted(SA, len));
+
+            const auto pivot_off = p_id * sample_per_part_;
+            sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
         };
 
     solved_ = 0;
@@ -557,6 +560,7 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
     initialize();
 
     sort_subarrays_ext_mem();
+    select_pivots_off_samples();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
