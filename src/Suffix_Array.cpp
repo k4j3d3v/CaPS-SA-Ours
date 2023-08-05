@@ -153,6 +153,10 @@ void Suffix_Array<T_idx_>::initialize()
             LCP_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
             SA_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
             LCP_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem));
+
+        for(std::size_t p_id = 0; p_id < p_; ++p_id)
+            SA_bucket.emplace_back(ext_mem_path + "_SA_" + std::to_string(p_id)),
+            LCP_bucket.emplace_back(ext_mem_path + "_LCP_" + std::to_string(p_id));
     }
 
     const auto sample_count = p_ * sample_per_part_;
@@ -210,6 +214,10 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
                 SA[i] = SA_w[i] = range_beg + i;
 
             merge_sort(SA_w, SA, len, LCP, LCP_w);
+
+            auto& SA_b = SA_bucket[p_id].data, &LCP_b = LCP_bucket[p_id].data;
+            SA_b.dump(SA, len), LCP_b.dump(LCP, len);
+            SA_b.close(), LCP_b.close();
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rSorted " << solved_ << " subarrays.";

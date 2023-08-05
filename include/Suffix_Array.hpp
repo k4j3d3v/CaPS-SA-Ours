@@ -4,6 +4,8 @@
 
 
 
+#include "Ext_Mem_Bucket.hpp"
+
 #include <cstdint>
 #include <cstddef>
 #include <atomic>
@@ -60,6 +62,9 @@ private:
 
     std::vector<th_local_buf_t> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
     std::vector<th_local_buf_t> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
+
+    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> SA_bucket;  // External-memory buckets for the suffix array elements within each subproblem.
+    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> LCP_bucket; // External-memory buckets for the LCP array elements within each subproblem.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
 
