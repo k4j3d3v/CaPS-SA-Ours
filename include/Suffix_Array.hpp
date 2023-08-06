@@ -125,11 +125,19 @@ private:
     // into `P`.
     static void sample_pivots(const idx_t* X, idx_t n, idx_t m, idx_t* P);
 
+    // Samples `m` pivots from the suffix collection range `[r_beg, r_beg + n)`
+    // into `P`.
+    static void sample_pivots(const idx_t r_beg, idx_t n, idx_t m, idx_t* P);
+
     // Selects pivots for parallel merging of the sorted subarrays.
     void select_pivots();
 
     // Collects samples from each sorted subarray.
     void collect_samples();
+
+    // Collects samples from each subarray, for the external-memory setting of
+    // the algorithm.
+    void collect_samples_ext_mem();
 
     // Selects the final pivot set from the sampled suffixes.
     void select_pivots_off_samples();

@@ -224,8 +224,8 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 
             assert(is_sorted(SA, len));
 
-            const auto pivot_off = p_id * sample_per_part_;
-            sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
+            // const auto pivot_off = p_id * sample_per_part_;
+            // sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
         };
 
     solved_ = 0;
@@ -247,11 +247,20 @@ void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, co
 
 
 template <typename T_idx_>
+void Suffix_Array<T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
+{
+    const auto gap = n / (m + 1);
+    for(idx_t i = 0; i < m; ++i)
+        P[i] = r_beg + (i + 1) * gap - 1;
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::select_pivots()
 {
     const auto t_s = now();
 
-    collect_samples();
+    !ext_mem_ ? collect_samples() : collect_samples_ext_mem();
     select_pivots_off_samples();
 
     const auto t_e = now();
@@ -265,6 +274,16 @@ void Suffix_Array<T_idx_>::collect_samples()
     const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
     for(idx_t i = 0; i < p_; ++i)
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
+                        sample_per_part_, pivot_ + i * sample_per_part_);
+}
+
+
+template <typename T_idx_>
+void Suffix_Array<T_idx_>::collect_samples_ext_mem()
+{
+    const auto subarr_sz = n_ / p_; // Size of each sorted subarray.
+    for(idx_t i = 0; i < p_; ++i)
+        sample_pivots(  i * subarr_sz, subarr_sz + (i < p_ - 1? 0 : n_ % p_),
                         sample_per_part_, pivot_ + i * sample_per_part_);
 }
 
@@ -559,8 +578,10 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 
     initialize();
 
+    select_pivots();
+
     sort_subarrays_ext_mem();
-    select_pivots_off_samples();
+    // select_pivots_off_samples();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
