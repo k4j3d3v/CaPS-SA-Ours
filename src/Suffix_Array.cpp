@@ -152,7 +152,8 @@ void Suffix_Array<T_idx_>::initialize()
             SA_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
             LCP_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
             SA_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            LCP_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem));
+            LCP_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
+            pivot_loc_buf.emplace_back(allocate<idx_t>(p_ + 2));
 
         for(std::size_t p_id = 0; p_id < p_; ++p_id)
             SA_bucket.emplace_back(ext_mem_path + "_SA_" + std::to_string(p_id)),
@@ -226,6 +227,13 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 
             // const auto pivot_off = p_id * sample_per_part_;
             // sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
+
+
+            auto const P = pivot_loc_buf[w_id].data;    // Pivot positions in this sorted subarray.
+
+            P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
+            for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
+                P[piv_id + 1] = upper_bound(SA, len, T_ + pivot_[piv_id], n_ - pivot_[piv_id]);
         };
 
     solved_ = 0;

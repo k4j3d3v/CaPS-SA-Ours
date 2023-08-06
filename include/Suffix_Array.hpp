@@ -77,6 +77,8 @@ private:
     idx_t* part_size_scan_; // Inclusive scan (prefix sum) of the sizes of the pivoted final partitions containing appropriate sorted sub-subarrays.
     idx_t* part_ruler_; // "Ruler" for the partitions—contains the indices of each sub-subarray in each partition.
 
+    std::vector<th_local_buf_t> pivot_loc_buf;  // Buffers to store pivot locations in sorted subarrays for worker threads.
+
     std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved in some step.
 
     static constexpr idx_t default_subproblem_count = 8192; // Default subproblem-count to use in construction.
