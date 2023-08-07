@@ -12,6 +12,7 @@
 #include <fstream>
 #include <filesystem>
 #include <cstdlib>
+#include <algorithm>
 #include <cassert>
 
 
@@ -61,9 +62,12 @@ public:
     // Adds the element `elem` to the bucket.
     void add(const T_& elem);
 
+    // Adds `sz` elements from `src` to the bucket.
+    void add(const T_* src, std::size_t sz);
+
     // Dumps `sz` elements from `buf` directly into the external-memory. The
     // current in-memory elements of the bucket are bypassed.
-    void dump(const T_* buf, const std::size_t sz);
+    void dump(const T_* buf, std::size_t sz);
 
     // Closes the bucket. Elements should not be added anymore once this has
     // been invoked. This method is required only if the entirety of the bucket
@@ -111,6 +115,19 @@ inline void Ext_Mem_Bucket<T_>::add(const T_& elem)
 {
     buf.push_back(elem);
     size_++;
+    if(buf.size() >= max_write_buf_elems)
+        flush();
+}
+
+
+template <typename T_>
+inline void Ext_Mem_Bucket<T_>::add(const T_* const src, const std::size_t sz)
+{
+    while(buf.capacity() < buf.size() + sz)
+        buf.reserve(buf.capacity() * 2);
+
+    size_ += sz;
+    std::copy(src, src + sz, buf.end());
     if(buf.size() >= max_write_buf_elems)
         flush();
 }
