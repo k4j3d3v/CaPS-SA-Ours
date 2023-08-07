@@ -70,6 +70,7 @@ private:
 
     std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> SA_bucket;  // External-memory buckets for the suffix array elements within each subproblem.
     std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> LCP_bucket; // External-memory buckets for the LCP array elements within each subproblem.
+    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> sz_bucket;  // External-memory buckets for the sizes of the sorted sub-subarrays within each subproblem.
     Padded_Data<Spin_Lock>* lock; // Lock for each bucket.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
