@@ -12,7 +12,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cstdlib>
-#include <algorithm>
 #include <cassert>
 
 
@@ -123,11 +122,8 @@ inline void Ext_Mem_Bucket<T_>::add(const T_& elem)
 template <typename T_>
 inline void Ext_Mem_Bucket<T_>::add(const T_* const src, const std::size_t sz)
 {
-    while(buf.capacity() < buf.size() + sz)
-        buf.reserve(buf.capacity() * 2);
-
     size_ += sz;
-    std::copy(src, src + sz, buf.end());
+    buf.insert(buf.end(), src, src + sz);
     if(buf.size() >= max_write_buf_elems)
         flush();
 }
