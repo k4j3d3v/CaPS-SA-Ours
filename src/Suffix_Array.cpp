@@ -219,14 +219,10 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 
             merge_sort(SA_w, SA, len, LCP, LCP_w);
 
-            auto& SA_b = SA_bucket[p_id].data, &LCP_b = LCP_bucket[p_id].data;
-            SA_b.dump(SA, len), LCP_b.dump(LCP, len);
-            SA_b.close(), LCP_b.close();
+            assert(is_sorted(SA, len));
 
             if(++solved_ % 8 == 0)
-                std::cerr << "\rSorted " << solved_ << " subarrays.";
-
-            assert(is_sorted(SA, len));
+                std::cerr << "\rSorted and partitioned " << solved_ << " subarrays.";
 
             // const auto pivot_off = p_id * sample_per_part_;
             // sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
@@ -237,11 +233,18 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
                 P[piv_id + 1] = upper_bound(SA, len, T_ + pivot_[piv_id], n_ - pivot_[piv_id]);
+
+            distribute_sub_subarrays_ext_mem();
         };
 
     solved_ = 0;
     parlay::parallel_for(0, p_, sort_subarr, 1);
     std::cerr << "\n";
+
+    for(idx_t p_id = 0; p_id < p_; ++p_id)
+        SA_bucket[p_id].data.close(),
+        LCP_bucket[p_id].data.close(),
+        sz_bucket[p_id].data.close();
 
     const auto t_e = now();
     std::cerr << "Sorted the subarrays independently. Time taken: " << duration(t_e - t_s) << " seconds.\n";
@@ -455,6 +458,33 @@ void Suffix_Array<T_idx_>::partition_sub_subarrays(const idx_t* const P)
 
     const auto t_e = now();
     std::cerr << "Collated the sorted sub-subarrays into partitions. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
+void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem()
+{
+    const auto w_id = parlay::worker_id();
+    const auto SA = SA_buf[w_id].data, LCP = LCP_buf[w_id].data, P = pivot_loc_buf[w_id].data;
+
+
+    // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
+
+    const auto step = parlay::num_workers();
+    for(std::size_t round = 0; round < step; ++round)
+        for(auto part_id = (w_id + round) % step; part_id < p_; part_id += step)
+        {
+            const auto sub_subarr_sz = P[part_id + 1] - P[part_id];
+
+            lock[part_id].data.lock();
+
+            auto &SA_b = SA_bucket[part_id].data, &LCP_b = LCP_bucket[part_id].data, &sz_b = sz_bucket[part_id].data;
+            SA_b.add(SA + P[part_id], sub_subarr_sz);
+            LCP_b.add(LCP + P[part_id], sub_subarr_sz);
+            sz_b.add(sub_subarr_sz);
+
+            lock[part_id].data.unlock();
+        }
 }
 
 
