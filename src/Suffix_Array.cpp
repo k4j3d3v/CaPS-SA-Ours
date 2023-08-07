@@ -158,6 +158,8 @@ void Suffix_Array<T_idx_>::initialize()
         for(std::size_t p_id = 0; p_id < p_; ++p_id)
             SA_bucket.emplace_back(ext_mem_path + "_SA_" + std::to_string(p_id)),
             LCP_bucket.emplace_back(ext_mem_path + "_LCP_" + std::to_string(p_id));
+
+        lock = new Padded_Data<Spin_Lock>[p_];
     }
 
     const auto sample_count = p_ * sample_per_part_;

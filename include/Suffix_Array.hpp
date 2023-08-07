@@ -5,6 +5,7 @@
 
 
 #include "Ext_Mem_Bucket.hpp"
+#include "Spin_Lock.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -27,6 +28,10 @@ struct alignas(2 * L1_CACHE_LINE_SIZE)
     Padded_Data
 {
     T_ data;
+
+
+    Padded_Data()
+    {}
 
     Padded_Data(T_&& data):
         data(std::move(data))
@@ -65,6 +70,7 @@ private:
 
     std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> SA_bucket;  // External-memory buckets for the suffix array elements within each subproblem.
     std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> LCP_bucket; // External-memory buckets for the LCP array elements within each subproblem.
+    Padded_Data<Spin_Lock>* lock; // Lock for each bucket.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
 
