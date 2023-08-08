@@ -53,7 +53,10 @@ public:
     Ext_Mem_Bucket(Ext_Mem_Bucket&& other) = default;
 
     // Invalidate the copy-constructor.
-    Ext_Mem_Bucket(const Ext_Mem_Bucket& other) = delete;
+    Ext_Mem_Bucket(const Ext_Mem_Bucket&) = delete;
+
+    // Invalidate the copy-assignment operator.
+    Ext_Mem_Bucket& operator=(const Ext_Mem_Bucket&) = delete;
 
     // Returns the size of the bucket.
     std::size_t size() const { return size_; }
