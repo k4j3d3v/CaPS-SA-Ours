@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <numeric>
+#include <random>
 #include <cmath>
 #include <algorithm>
 #include <cassert>
@@ -206,6 +208,15 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 {
     const auto t_s = now();
 
+    std::vector<Padded_Data<std::vector<idx_t>>> part_route_order(parlay::num_workers(), std::vector<idx_t>(p_));
+    auto rng = std::default_random_engine{};
+    for(auto& pd : part_route_order)
+    {
+        auto& v = pd.data;
+        std::iota(v.begin(), v.end(), 0);
+        std::shuffle(v.begin(), v.end(), rng);
+    }
+
     const auto subarr_sz = n_ / p_; // Size of each subarray to sort independently.
     const auto sort_subarr =
         [&](const idx_t p_id)
@@ -237,7 +248,7 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
                 assert(P[piv_id + 1] >= P[piv_id]);
             }
 
-            distribute_sub_subarrays_ext_mem();
+            distribute_sub_subarrays_ext_mem(part_route_order[w_id].data);
         };
 
     solved_ = 0;
@@ -465,33 +476,30 @@ void Suffix_Array<T_idx_>::partition_sub_subarrays(const idx_t* const P)
 
 
 template <typename T_idx_>
-void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem()
+void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order)
 {
     const auto w_id = parlay::worker_id();
     const auto SA = SA_buf[w_id].data, LCP = LCP_buf[w_id].data, P = pivot_loc_buf[w_id].data;
 
 
     // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
-    // TODO: replace with random permutations—if two workers accidentally collide at the same `part_id`, they'll lockstep for the rest of the sequence.
-    const auto step = parlay::num_workers();
-    for(std::size_t round = 0; round < step; ++round)
-        for(auto part_id = (w_id + round) % step; part_id < p_; part_id += step)
-        {
-            const auto sub_subarr_sz = P[part_id + 1] - P[part_id];
-            if(sub_subarr_sz > 0)
-                LCP[P[part_id]] = 0;    // An independent sorted segments first LCP-value is 0.
+    for(const auto part_id : route_order)
+    {
+        const auto sub_subarr_sz = P[part_id + 1] - P[part_id];
+        if(sub_subarr_sz > 0)
+            LCP[P[part_id]] = 0;    // An independent sorted segments first LCP-value is 0.
 
-            lock[part_id].data.lock();
+        lock[part_id].data.lock();
 
-            auto &SA_b = SA_bucket[part_id].data, &LCP_b = LCP_bucket[part_id].data, &sz_b = sz_bucket[part_id].data;
-            SA_b.add(SA + P[part_id], sub_subarr_sz);
-            LCP_b.add(LCP + P[part_id], sub_subarr_sz);
-            sz_b.add(sub_subarr_sz);
+        auto &SA_b = SA_bucket[part_id].data, &LCP_b = LCP_bucket[part_id].data, &sz_b = sz_bucket[part_id].data;
+        SA_b.add(SA + P[part_id], sub_subarr_sz);
+        LCP_b.add(LCP + P[part_id], sub_subarr_sz);
+        sz_b.add(sub_subarr_sz);
 
-            assert(is_sorted(SA + P[part_id], sub_subarr_sz, LCP + P[part_id]));
+        assert(is_sorted(SA + P[part_id], sub_subarr_sz, LCP + P[part_id]));
 
-            lock[part_id].data.unlock();
-        }
+        lock[part_id].data.unlock();
+    }
 }
 
 

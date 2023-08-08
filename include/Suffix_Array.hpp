@@ -173,8 +173,9 @@ private:
 
     // Distributes the sub-subarrays delineated by the pivot locations in the
     // current sorted subarray being processed, into appropriate partitions (in
-    // external-memory).
-    void distribute_sub_subarrays_ext_mem();
+    // external-memory). The sub-subarrays are distributed as per the order in
+    // `route_order`.
+    void distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order);
 
     // Merges the sorted sub-subarrays laid flat together in each partition.
     void merge_sub_subarrays();
