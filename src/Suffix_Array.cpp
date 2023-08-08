@@ -231,7 +231,10 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
+            {
                 P[piv_id + 1] = upper_bound(SA, len, T_ + pivot_[piv_id], n_ - pivot_[piv_id]);
+                assert(P[piv_id + 1] >= P[piv_id]);
+            }
 
             distribute_sub_subarrays_ext_mem();
         };
@@ -481,6 +484,8 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem()
             SA_b.add(SA + P[part_id], sub_subarr_sz);
             LCP_b.add(LCP + P[part_id], sub_subarr_sz);
             sz_b.add(sub_subarr_sz);
+
+            assert(is_sorted(SA + P[part_id], sub_subarr_sz, LCP + P[part_id]));
 
             lock[part_id].data.unlock();
         }
