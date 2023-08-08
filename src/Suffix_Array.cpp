@@ -472,7 +472,7 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem()
 
 
     // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
-
+    // TODO: replace with random permutations—if two workers accidentally collide at the same `part_id`, they'll lockstep for the rest of the sequence.
     const auto step = parlay::num_workers();
     for(std::size_t round = 0; round < step; ++round)
         for(auto part_id = (w_id + round) % step; part_id < p_; part_id += step)
