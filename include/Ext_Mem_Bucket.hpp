@@ -73,8 +73,8 @@ public:
     // needs to live in external-memory after the parent process finishes.
     void close();
 
-    // Loads the bucket into the vector `v`.
-    void load(std::vector<T_>& v) const;
+    // Loads the bucket into `dest`.
+    std::size_t load(T_* dest) const;
 };
 
 
@@ -156,28 +156,20 @@ inline void Ext_Mem_Bucket<T_>::close()
 
 
 template <typename T_>
-inline void Ext_Mem_Bucket<T_>::load(std::vector<T_>& v) const
+inline std::size_t Ext_Mem_Bucket<T_>::load(T_* const dest) const
 {
-    std::error_code ec;
-    const auto file_sz = std::filesystem::file_size(file_path, ec);
-
-    assert(file_sz % sizeof(T_) == 0);
-    assert(file_sz / sizeof(T_) + buf.size() == size_);
-
-    v.resize(size_);
-
     std::ifstream input(file_path);
-    input.read(reinterpret_cast<char*>(v.data()), file_sz);
+    input.read(reinterpret_cast<char*>(dest), size_ * sizeof(T_));
     input.close();
 
-    if(ec || !input)
+    if(!input)
     {
         std::cerr << "Error reading of external-memory bucket at " << file_path << ". Aborting.\n";
         std::exit(EXIT_FAILURE);
     }
 
-
-    std::memcpy(reinterpret_cast<char*>(v.data()) + file_sz, reinterpret_cast<const char*>(buf.data()), buf.size() * sizeof(T_));
+    assert(input.gcount() % sizeof(T_) == 0);
+    return input.gcount() / sizeof(T_);
 }
 
 }
