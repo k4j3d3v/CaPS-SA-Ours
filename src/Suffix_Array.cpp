@@ -477,6 +477,8 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem()
         for(auto part_id = (w_id + round) % step; part_id < p_; part_id += step)
         {
             const auto sub_subarr_sz = P[part_id + 1] - P[part_id];
+            if(sub_subarr_sz > 0)
+                LCP[P[part_id]] = 0;    // An independent sorted segments first LCP-value is 0.
 
             lock[part_id].data.lock();
 
