@@ -218,8 +218,7 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
                 SA[i] = SA_w[i] = range_beg + i;
 
             merge_sort(SA_w, SA, len, LCP, LCP_w);
-
-            assert(is_sorted(SA, len));
+            assert(is_sorted(SA, len, LCP));
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rSorted and partitioned " << solved_ << " subarrays.";
@@ -645,18 +644,25 @@ void Suffix_Array<T_idx_>::dump(std::ofstream& output)
 
 
 template <typename T_idx_>
-bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n) const
+bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const idx_t* const LCP_X) const
 {
+    if(LCP_X && n > 0 && LCP_X[0] != 0)
+        return false;
+
     for(idx_t i = 1; i < n; ++i)
     {
         const auto x = T_ + X[i - 1], y = T_ + X[i];
         const auto l = std::min(n_ - X[i - 1], n_ - X[i]);
 
-        for(idx_t i = 0; i < l; ++i)
-            if(x[i] < y[i])
+        idx_t lcp = 0;
+        for(; lcp < l; ++lcp)
+            if(x[lcp] < y[lcp])
                 break;
-            else if(x[i] > y[i])
+            else if(x[lcp] > y[lcp])
                 return false;
+
+        if(LCP_X && lcp != LCP_X[i])
+            return false;
     }
 
     return true;
