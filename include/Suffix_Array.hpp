@@ -92,6 +92,8 @@ private:
 
     std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved in some step.
 
+    const bool op_lcp;  // Whether to output the LCP-array.
+
     static constexpr idx_t default_subproblem_count = 8192; // Default subproblem-count to use in construction.
     static constexpr idx_t nested_par_grain_size = (1lu << 13); // Granularity for nested parallelism to kick in.
 

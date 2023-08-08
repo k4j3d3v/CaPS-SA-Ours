@@ -29,7 +29,8 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     sample_per_part_(static_cast<idx_t>(std::ceil(32.0 * std::log(n_)))),   // c \ln n
     pivot_(nullptr),
     part_size_scan_(nullptr),
-    part_ruler_(nullptr)
+    part_ruler_(nullptr),
+    op_lcp(false)   // TODO: take input
 {
     if(p_ == 0)
     {
@@ -588,6 +589,10 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
 
             sort_partition(SA_w, SA, p_, sub_subarr_idx, LCP_w, LCP);
             assert(is_sorted(SA, part_sz, LCP));
+
+            SA_b.rewrite(SA, part_sz);
+            if(op_lcp)
+                LCP_b.rewrite(LCP, part_sz);
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rMerged " << solved_ << " partitions.";
