@@ -719,8 +719,34 @@ void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
 
     const std::size_t n = n_;
     output.write(reinterpret_cast<const char*>(&n), sizeof(std::size_t));
-    output.write(reinterpret_cast<const char*>(SA_), n_ * sizeof(idx_t));
-    output.write(reinterpret_cast<const char*>(LCP_), n_ * sizeof(idx_t));
+
+    if(!ext_mem_)
+    {
+        output.write(reinterpret_cast<const char*>(SA_), n_ * sizeof(idx_t));
+        if(op_lcp)
+            output.write(reinterpret_cast<const char*>(LCP_), n_ * sizeof(idx_t));
+    }
+    else
+    {
+        for(idx_t p_id = 0; p_id < p_; ++p_id)
+        {
+            std::ifstream input(SA_bucket_file_path(p_id));
+            assert(input.peek() != EOF);
+            output << input.rdbuf();
+            input.close();
+        }
+
+        if(op_lcp)
+            for(idx_t p_id = 0; p_id < p_; ++p_id)
+            {
+                std::ifstream input(LCP_bucket_file_path(p_id));
+                assert(input.peek() != EOF);
+                output << input.rdbuf();
+                input.close();
+            }
+
+        output.close();
+    }
 
     const auto t_end = now();
     std::cerr << "Dumped the suffix array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
