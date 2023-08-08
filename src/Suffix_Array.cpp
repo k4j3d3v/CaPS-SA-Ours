@@ -549,7 +549,7 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
         [&](const idx_t p_id)
         {
             const auto w_id = parlay::worker_id();
-            auto SA = SA_buf[w_id].data, LCP = LCP_buf[w_id].data, SA_w = SA_w_buf[w_id].data, LCP_w = LCP_w_buf[w_id].data;
+            auto &SA = SA_buf[w_id].data, &LCP = LCP_buf[w_id].data, &SA_w = SA_w_buf[w_id].data, &LCP_w = LCP_w_buf[w_id].data;
             auto sub_subarr_idx = sub_subarr_idx_buf[w_id].data;
 
             auto &SA_b = SA_bucket[p_id].data, &LCP_b = LCP_bucket[p_id].data, &sz_b = sz_bucket[p_id].data;
