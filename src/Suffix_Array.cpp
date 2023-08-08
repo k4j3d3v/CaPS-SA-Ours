@@ -536,6 +536,76 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays()
 
 
 template <typename T_idx_>
+void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
+{
+    const auto t_s = now();
+
+    std::vector<Padded_Data<std::size_t>> buf_cap(parlay::num_workers(), per_worker_in_mem_elem);   // Capacity of the buffers from each worker.
+    std::vector<th_local_buf_t> sub_subarr_idx_buf(parlay::num_workers());   // Buffer for the sorted sub-subarray sizes in each partition for each worker.
+    std::for_each(sub_subarr_idx_buf.begin(), sub_subarr_idx_buf.end(), [this](auto& buf){ buf.data = allocate<idx_t>(p_ + 1); });
+
+    const auto merge_sub_subarray =
+        [&](const idx_t p_id)
+        {
+            const auto w_id = parlay::worker_id();
+            auto SA = SA_buf[w_id].data, LCP = LCP_buf[w_id].data, SA_w = SA_w_buf[w_id].data, LCP_w = LCP_w_buf[w_id].data;
+            auto sub_subarr_idx = sub_subarr_idx_buf[w_id].data;
+
+            auto &SA_b = SA_bucket[p_id].data, &LCP_b = LCP_bucket[p_id].data, &sz_b = sz_bucket[p_id].data;
+            assert(SA_b.size() == LCP_b.size());
+            assert(sz_b.size() == p_);
+
+
+            auto& cap = buf_cap[w_id].data;
+            const idx_t part_sz = SA_b.size();
+            if(cap < part_sz)
+            {
+                while(cap < part_sz)
+                    cap *= 2;
+
+                SA = reallocate(SA, cap), LCP = reallocate(LCP, cap),
+                SA_w = reallocate(SA_w, cap), LCP_w = reallocate(LCP_w, cap);
+            }
+
+
+            // Load buckets and fulfill `sort_partition`'s precondition.
+
+            SA_b.load(SA);
+            std::memcpy(SA_w, SA, part_sz * sizeof(idx_t));
+
+            LCP_b.load(LCP);
+            std::memcpy(LCP_w, LCP, part_sz * sizeof(idx_t));
+
+            sub_subarr_idx[0] = 0;
+            sz_b.load(sub_subarr_idx + 1);
+            for(idx_t i = 1; i <= p_; ++i)  // Convert sub-subarray sizes to sub-subarray indices.
+                sub_subarr_idx[i] += sub_subarr_idx[i - 1];
+
+            assert(sub_subarr_idx[p_] == part_sz);
+
+            for(idx_t i = 0; i < p_; ++i)
+                assert(is_sorted(SA + sub_subarr_idx[i], sub_subarr_idx[i + 1] - sub_subarr_idx[i], LCP + sub_subarr_idx[i]));
+
+            sort_partition(SA_w, SA, p_, sub_subarr_idx, LCP_w, LCP);
+            assert(is_sorted(SA, part_sz, LCP));
+
+            if(++solved_ % 8 == 0)
+                std::cerr << "\rMerged " << solved_ << " partitions.";
+        };
+
+    solved_ = 0;
+    parlay::parallel_for(0, p_, merge_sub_subarray, 1);
+    std::cerr << "\n";
+
+
+    std::for_each(sub_subarr_idx_buf.cbegin(), sub_subarr_idx_buf.cend(), [](auto& buf){ std::free(buf.data); });
+
+    const auto t_e = now();
+    std::cerr << "Merged the sorted subarrays in each partition. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const idx_t n, const idx_t* const S, idx_t* const LCP_x, idx_t* const LCP_y)
 {
     if(n == 1)
@@ -549,7 +619,7 @@ void Suffix_Array<T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const 
     const auto g = [&](){ sort_partition(Y + flat_count_l, X + flat_count_l, n - m, S + m, LCP_y + flat_count_l, LCP_x + flat_count_l); };
 
     (flat_count_l < nested_par_grain_size || flat_count_r < nested_par_grain_size) ?
-        (f(), g()) : parlay::par_do(f, g);
+        (f(), g()) : parlay::par_do(f, g, ext_mem_);
     merge(X, flat_count_l, X + flat_count_l, flat_count_r, LCP_x, LCP_x + flat_count_l, Y, LCP_y);
 }
 
@@ -629,6 +699,8 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 
     sort_subarrays_ext_mem();
     // select_pivots_off_samples();
+
+    merge_sub_subarrays_ext_mem();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";

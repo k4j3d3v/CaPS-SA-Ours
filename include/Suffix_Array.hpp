@@ -33,6 +33,10 @@ struct alignas(2 * L1_CACHE_LINE_SIZE)
     Padded_Data()
     {}
 
+    Padded_Data(const T_& data):
+      data(data)
+    {}
+
     Padded_Data(T_&& data):
         data(std::move(data))
     {}
@@ -173,6 +177,9 @@ private:
     // Merges the sorted sub-subarrays laid flat together in each partition.
     void merge_sub_subarrays();
 
+    // Merges the sorted sub-subarrays in each external-memory partition.
+    void merge_sub_subarrays_ext_mem();
+
     // Computes the LCPs at the partition boundaries, specifically at the
     // starting index of each partition in their flat collection.
     void compute_partition_boundary_lcp();
@@ -188,9 +195,16 @@ private:
     // Cleans up after the construction algorithm.
     void clean_up();
 
+    // TODO: merge the following two using nullptr `realloc`.
+
     // Returns pointer to a memory-allocation for `size` elements of type `T_`.
     template <typename T_>
     static T_* allocate(idx_t size) { return static_cast<T_*>(std::malloc(size * sizeof(T_))); }
+
+    // Returns pointer to a memory-reallocation of pointer `ptr` for `size`
+    // elements of type `T_`.
+    template <typename T_>
+    static T_* reallocate(T_* const ptr, idx_t size) { return static_cast<T_*>(std::realloc(ptr, size * sizeof(T_))); }
 
     // Returns true iff `X` is a valid (partial) suffix array with size `n`. An
     // optional LCP-array `LCP_X` can be provided to check its correctness too.
