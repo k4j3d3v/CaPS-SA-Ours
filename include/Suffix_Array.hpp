@@ -195,6 +195,10 @@ private:
     // Cleans up after the construction algorithm.
     void clean_up();
 
+    const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_SA_" + std::to_string(p_id); }
+    const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
+    const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }
+
     // TODO: merge the following two using nullptr `realloc`.
 
     // Returns pointer to a memory-allocation for `size` elements of type `T_`.
@@ -246,7 +250,7 @@ public:
     void construct_ext_mem();
 
     // Dumps the suffix array and the LCP array into the stream `output`.
-    void dump(std::ofstream& output);
+    void dump(std::ofstream& output) const;
 };
 
 
