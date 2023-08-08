@@ -78,6 +78,9 @@ public:
 
     // Loads the bucket into `dest`.
     std::size_t load(T_* dest) const;
+
+    // Rewrites the bucket with `sz` elements from `src`.
+    void rewrite(const T_* src, std::size_t sz);
 };
 
 
@@ -173,6 +176,22 @@ inline std::size_t Ext_Mem_Bucket<T_>::load(T_* const dest) const
 
     assert(input.gcount() % sizeof(T_) == 0);
     return input.gcount() / sizeof(T_);
+}
+
+
+template <typename T_>
+inline void Ext_Mem_Bucket<T_>::rewrite(const T_* const src, const std::size_t sz)
+{
+    buf.clear();
+
+    if(!file.is_open())
+        file.open(file_path, std::ios::out | std::ios::binary);
+
+    file.clear();
+    file.seekp(std::ios_base::beg);
+    file.write(reinterpret_cast<const char*>(src), sz * sizeof(T_));
+
+    size_ = sz;
 }
 
 }
