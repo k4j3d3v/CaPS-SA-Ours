@@ -198,6 +198,9 @@ private:
     // Cleans up after the construction algorithm.
     void clean_up();
 
+    // Cleans up after the external-memory construction algorithm.
+    void clean_up_ext_mem();
+
     const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_SA_" + std::to_string(p_id); }
     const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
     const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }

@@ -48,12 +48,6 @@ Suffix_Array<T_idx_>::~Suffix_Array()
     if(!ext_mem_)
         std::free(SA_),
         std::free(LCP_);
-    else
-        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-            std::free(SA_buf[w_id].data),
-            std::free(LCP_buf[w_id].data),
-            std::free(SA_w_buf[w_id].data),
-            std::free(LCP_w_buf[w_id].data);
 }
 
 
@@ -674,6 +668,31 @@ void Suffix_Array<T_idx_>::clean_up()
 
 
 template <typename T_idx_>
+void Suffix_Array<T_idx_>::clean_up_ext_mem()
+{
+    const auto t_s = now();
+
+    for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+        std::free(SA_buf[w_id].data),
+        std::free(LCP_buf[w_id].data),
+        std::free(SA_w_buf[w_id].data),
+        std::free(LCP_w_buf[w_id].data),
+        std::free(pivot_loc_buf[w_id].data);
+
+    delete[] lock;
+    std::free(pivot_);
+
+    const auto remove_bucket =
+        [this](const idx_t p_id)
+        { SA_bucket[p_id].data.remove(), LCP_bucket[p_id].data.remove(), sz_bucket[p_id].data.remove(); };
+    parlay::parallel_for(0, p_, remove_bucket, 1);
+
+    const auto t_e = now();
+    std::cerr << "Released the temporary data structures. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::construct()
 {
     const auto t_start = now();
@@ -714,6 +733,8 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
     // select_pivots_off_samples();
 
     merge_sub_subarrays_ext_mem();
+
+    clean_up_ext_mem();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";

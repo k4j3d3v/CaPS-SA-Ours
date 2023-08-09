@@ -81,6 +81,9 @@ public:
 
     // Rewrites the bucket with `sz` elements from `src`.
     void rewrite(const T_* src, std::size_t sz);
+
+    // Removes the bucket from disk.
+    void remove();
 };
 
 
@@ -192,6 +195,17 @@ inline void Ext_Mem_Bucket<T_>::rewrite(const T_* const src, const std::size_t s
     file.write(reinterpret_cast<const char*>(src), sz * sizeof(T_));
 
     size_ = sz;
+}
+
+
+template <typename T_>
+inline void Ext_Mem_Bucket<T_>::remove()
+{
+    if(std::remove(file_path.c_str()))
+    {
+        std::cerr << "Error removing external-memory file " << file_path << ". Aborting.\n";
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 }
