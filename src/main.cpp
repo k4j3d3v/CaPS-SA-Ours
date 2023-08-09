@@ -67,14 +67,14 @@ int main(int argc, char* argv[])
         CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
-        suf_arr.dump(output);
+        // suf_arr.dump(output);
     }
     else
     {
         CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
-        suf_arr.dump(output);
+        // suf_arr.dump(output);
     }
 
     output.close();
