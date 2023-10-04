@@ -205,11 +205,13 @@ private:
     const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
     const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }
 
+    // TODO: move the following utility methods out.
     // TODO: merge the following two using nullptr `realloc`.
 
     // Returns pointer to a memory-allocation for `size` elements of type `T_`.
     template <typename T_>
     static T_* allocate(idx_t size) { return static_cast<T_*>(std::malloc(size * sizeof(T_))); }
+    // TODO: write an associated `deallocate`.
 
     // Returns pointer to a memory-reallocation of pointer `ptr` for `size`
     // elements of type `T_`.
