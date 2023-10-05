@@ -800,6 +800,11 @@ bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const 
             else if(x[lcp] > y[lcp])
                 return false;
 
+        if(lcp == l && x < y)   // Shorter suffix is a prefix of the longer one;
+                                // possible in strings w/o designated delimiters, and in context-bounded SAs.
+                                // Shorter suffixes are considered lexicographically smaller in such cases.
+            return false;
+
         if(LCP_X && lcp != LCP_X[i])
             return false;
     }
