@@ -822,6 +822,101 @@ bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const 
     return true;
 }
 
+
+template <typename T_idx_>
+bool Suffix_Array<T_idx_>::is_correct()
+{
+    std::vector<Padded_Data<bool>> result(p_, true);    // Correctness result from each worker.
+
+    if(SA_ == nullptr)  // External-memory scenario.
+    {
+        assert(ext_mem_);
+
+        std::vector<Padded_Data<idx_t*>> SA_buf_w(parlay::num_workers());   // Buffer space for each worker, to load SA parts.
+        std::vector<Padded_Data<idx_t*>> LCP_buf_w(parlay::num_workers());  // Buffer space for each worker, to load LCP-array parts.
+
+        std::vector<Padded_Data<idx_t>> s_first(p_);    // First suffix in each part.
+        std::vector<Padded_Data<idx_t>> s_last(p_);     // Last suffix in each part.
+
+        std::size_t max_b_size = 0; // Maximum bucket-size.
+        std::for_each(SA_bucket.cbegin(), SA_bucket.cend(), [&](const auto& b){ max_b_size = std::max(max_b_size, b.data.size()); });
+
+        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+            SA_buf_w[w_id] = allocate<idx_t>(max_b_size),
+            LCP_buf_w[w_id] = allocate<idx_t>(max_b_size);
+
+
+        // Method to check if a part is sorted.
+        const auto check_sorted = [&](const std::size_t p_id)
+        {
+            const auto& SA_b = SA_bucket[p_id].data;
+            const auto& LCP_b = LCP_bucket[p_id].data;
+            const auto sz = SA_b.size();
+            assert(sz == LCP_b.size());
+            auto SA_buf = SA_buf_w[parlay::worker_id()].data, LCP_buf = LCP_buf_w[parlay::worker_id()].data;
+
+            SA_b.load(SA_buf);
+            LCP_b.load(LCP_buf);
+
+            if(!is_sorted(SA_buf, sz))//, LCP_buf)) // TODO: fix this—LCP buckets may not have updated data.
+                result[p_id].data = false;
+
+            s_first[p_id].data = SA_buf[0], s_last[p_id].data = SA_buf[sz - 1];
+        };
+
+        parlay::parallel_for(0, p_, check_sorted, 1);
+
+
+        // Method to check if the parts are in sorted order.
+        const auto check_part_order = [&](const std::size_t p_id)
+        {
+            if(p_id == 0)
+                return;
+
+            idx_t lcp;
+            if(!is_smaller(s_last[p_id - 1].data, s_first[p_id].data, lcp))
+                result[p_id].data = false;
+
+            // Note: we don't have the inter-part (i.e. boundary) LCP-information yet—so no use of `lcp`.
+        };
+
+        parlay::parallel_for(0, p_, check_part_order, 1);
+
+
+        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+            std::free(SA_buf_w[w_id].data), std::free(LCP_buf_w[w_id].data);
+    }
+    else
+    {
+        if(LCP_ && LCP_[0] != 0)
+            return false;
+
+        const auto range_sz_per_p = n_ / p_;
+        const auto is_sorted = [&](const std::size_t p_id)
+        {
+            const auto beg = (p_id > 0 ? range_sz_per_p * p_id : 1);
+            const auto end = (p_id < p_ - 1 ? (p_id + 1) * range_sz_per_p : n_);
+
+            idx_t lcp;
+            for(idx_t i = beg; i < end; ++i)
+                if(!is_smaller(SA_[i - 1], SA_[i], lcp))
+                    result[p_id].data = false;
+                else if(LCP_ && lcp != LCP_[i])
+                    result[p_id].data = false;
+        };
+
+        parlay::parallel_for(0, p_, is_sorted, 1);
+
+        // The parts' order is implicitly checked by comparing `i - 1` and `i`.
+        // No additional inter-part comparisons required.
+    }
+
+
+    bool correct = true;
+    std::for_each(result.cbegin(), result.cend(), [&correct](const auto& r){ correct = correct && r.data; });
+    return correct;
+}
+
 }
 
 

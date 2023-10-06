@@ -263,6 +263,10 @@ public:
 
     // Dumps the suffix array and the LCP array into the stream `output`.
     void dump(std::ofstream& output) const;
+
+    // Returns `true` iff the suffix array (and the LCP-array, if retained) are
+    // correct.
+    bool is_correct();
 };
 
 
