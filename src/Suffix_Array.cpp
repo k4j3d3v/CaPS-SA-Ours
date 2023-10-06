@@ -420,16 +420,7 @@ void Suffix_Array<T_idx_>::partition_sub_subarrays(const idx_t* const P)
 
 
     // Compute inclusive-scan (prefix sum) of the partition sizes.
-    idx_t curr_sum = 0;
-    for(idx_t j = 0; j < p_; ++j) // For partition `j`.
-    {
-        const auto part_size = part_size_scan_[j];
-
-        part_size_scan_[j] = curr_sum;
-        curr_sum += part_size;
-    }
-
-    part_size_scan_[p_] = curr_sum;
+    prefix_sum(part_size_scan_, p_);
     assert(part_size_scan_[p_] == n_);
 
 
@@ -783,10 +774,21 @@ void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
 
 
 template <typename T_idx_>
-bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const idx_t* const LCP_X) const
+template <typename T_arr_>
+void Suffix_Array<T_idx_>::prefix_sum(T_arr_* A, const T_idx_ n)
 {
-    if(LCP_X && n > 0 && LCP_X[0] != 0)
-        return false;
+    T_arr_ curr_sum = 0;
+    for(idx_t i = 0; i < n; ++i)
+    {
+        const auto curr_val = A[i];
+
+        A[i] = curr_sum;
+        curr_sum += curr_val;
+    }
+
+    A[n] = curr_sum;
+}
+
 
 template <typename T_idx_>
 bool Suffix_Array<T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_t& lcp) const

@@ -222,6 +222,12 @@ private:
     // suffix `y`. Their LCP is computed in `lcp`.
     bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
 
+    // Computes in-place prefix-sum in the array `A` for the first `n` elements.
+    // `A` must have size at least `n + 1`—one extra entry is required to hold
+    // the total sum.
+    template <typename T_>
+    static void prefix_sum(T_* A, idx_t n);
+
     // Returns true iff `X` is a valid (partial) suffix array with size `n`. An
     // optional LCP-array `LCP_X` can be provided to check its correctness too.
     bool is_sorted(const idx_t* X, idx_t n, const idx_t* LCP_X = nullptr) const;
