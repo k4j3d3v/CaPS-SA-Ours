@@ -60,8 +60,8 @@ private:
 
     const idx_t per_worker_in_mem_elem; // Maximum number of elements for each worker to keep in memory in external-memory setting.
 
-    idx_t* const SA_;   // The suffix array.
-    idx_t* const LCP_;  // The LCP array.
+    idx_t* SA_;   // The suffix array.
+    idx_t* LCP_;  // The LCP array.
 
     std::vector<th_local_buf_t> SA_buf; // Memory-buffer for suffix array elements for worker threads in external-memory setting.
     std::vector<th_local_buf_t> LCP_buf;  // Memory-buffer for LCP array elements for worker threads in external-memory setting.
@@ -256,7 +256,7 @@ public:
     idx_t n() const { return n_; }
 
     // Returns the suffix array.
-    const idx_t* SA() const { return SA_; }
+    const idx_t* SA();
 
     // Returns the LCP array.
     const idx_t* LCP() const { return LCP_; }

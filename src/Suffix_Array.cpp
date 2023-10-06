@@ -733,6 +733,36 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 
 
 template <typename T_idx_>
+const T_idx_* Suffix_Array<T_idx_>::SA()
+{
+    if(SA_ == nullptr)
+    {
+        assert(ext_mem_);
+
+        idx_t* const pref_sum = allocate<idx_t>(p_ + 1);
+        parlay::parallel_for(0, p_,
+            [&](const std::size_t idx){ pref_sum[idx] = SA_bucket[idx].data.size(); });
+
+        prefix_sum(pref_sum, p_);
+
+
+        SA_ = allocate<idx_t>(n_);
+        parlay::parallel_for(0, p_,
+            [&](const std::size_t idx)
+            {
+                const auto read_elems = SA_bucket[idx].data.load(SA_ + pref_sum[idx]);
+                assert(read_elems == SA_bucket[idx].data.size());
+                (void)read_elems;
+            });
+
+        std::free(pref_sum);
+    }
+
+    return SA_;
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
 {
     const auto t_start = now();
