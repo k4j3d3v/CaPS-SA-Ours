@@ -788,26 +788,36 @@ bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const 
     if(LCP_X && n > 0 && LCP_X[0] != 0)
         return false;
 
-    for(idx_t i = 1; i < n; ++i)
+template <typename T_idx_>
+bool Suffix_Array<T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_t& lcp) const
+{
+    assert(x < n_ && y < n_);
+
+    const auto l = std::min(n_ - x, n_ - y);    // TODO: add context-bound.
+    lcp = this->lcp(T_ + x, T_ + y, l); // Using byte-by-byte variant for correctness-check.
+
+    if(lcp == l)    // Shorter suffix is a prefix of the longer one;
+                    // possible in strings w/o designated delimiters, and in context-bounded SAs.
     {
-        const auto x = T_ + X[i - 1], y = T_ + X[i];
-        const auto l = std::min(n_ - X[i - 1], n_ - X[i]);
-
-        idx_t lcp = 0;
-        for(; lcp < l; ++lcp)
-            if(x[lcp] < y[lcp])
-                break;
-            else if(x[lcp] > y[lcp])
-                return false;
-
-        if(lcp == l && x < y)   // Shorter suffix is a prefix of the longer one;
-                                // possible in strings w/o designated delimiters, and in context-bounded SAs.
-                                // Shorter suffixes are considered lexicographically smaller in such cases.
-            return false;
-
-        if(LCP_X && lcp != LCP_X[i])
-            return false;
+        return x > y;   // Shorter suffixes are considered lexicographically smaller in such cases.
     }
+
+    return T_[x + lcp] < T_[y + lcp];
+}
+
+
+template <typename T_idx_>
+bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const idx_t* const LCP_X) const
+{
+    if(LCP_X && n > 0 && LCP_X[0] != 0)
+        return false;
+
+    idx_t lcp;
+    for(idx_t i = 1; i < n; ++i)
+        if(!is_smaller(X[i - 1], X[i], lcp))
+            return false;
+        else if(LCP_X && lcp != LCP_X[i])
+            return false;
 
     return true;
 }

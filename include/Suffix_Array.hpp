@@ -218,6 +218,10 @@ private:
     template <typename T_>
     static T_* reallocate(T_* const ptr, idx_t size) { return static_cast<T_*>(std::realloc(ptr, size * sizeof(T_))); }
 
+    // Returns `true` iff the suffix `x` is lexicographically smaller than the
+    // suffix `y`. Their LCP is computed in `lcp`.
+    bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
+
     // Returns true iff `X` is a valid (partial) suffix array with size `n`. An
     // optional LCP-array `LCP_X` can be provided to check its correctness too.
     bool is_sorted(const idx_t* X, idx_t n, const idx_t* LCP_X = nullptr) const;
