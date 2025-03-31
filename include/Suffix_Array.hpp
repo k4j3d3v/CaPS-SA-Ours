@@ -6,13 +6,13 @@
 
 #include "Ext_Mem_Bucket.hpp"
 #include "Spin_Lock.hpp"
+#include "utility.hpp"
 
 #include <cstdint>
 #include <cstddef>
 #include <vector>
 #include <string>
 #include <cstdlib>
-#include <utility>
 #include <fstream>
 #include <chrono>
 
@@ -23,27 +23,6 @@
 namespace CaPS_SA
 {
 
-
-template <typename T_>
-struct alignas(2 * L1_CACHE_LINE_SIZE)
-    Padded_Data
-{
-    T_ data;
-
-
-    Padded_Data()
-    {}
-
-    Padded_Data(const T_& data):
-      data(data)
-    {}
-
-    Padded_Data(T_&& data):
-        data(std::move(data))
-    {}
-};
-
-
 // The Suffix Array (SA) and the Longest Common Prefix (LCP) array constructor
 // class for some given sequence.
 template <typename T_idx_>
@@ -52,7 +31,7 @@ class Suffix_Array
 private:
 
     typedef T_idx_ idx_t;   // Integer-type for indexing the input text.
-    typedef Padded_Data<idx_t*> th_local_buf_t; // Type of thread-local buffers.
+    typedef Padded<idx_t*> th_local_buf_t;  // Type of thread-local buffers.
 
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
@@ -73,10 +52,10 @@ private:
     std::vector<th_local_buf_t> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
     std::vector<th_local_buf_t> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
 
-    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> SA_bucket;  // External-memory buckets for the suffix array elements within each subproblem.
-    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> LCP_bucket; // External-memory buckets for the LCP array elements within each subproblem.
-    std::vector<Padded_Data<Ext_Mem_Bucket<idx_t>>> sz_bucket;  // External-memory buckets for the sizes of the sorted sub-subarrays within each subproblem.
-    Padded_Data<Spin_Lock>* lock; // Lock for each bucket.
+    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> SA_bucket;   // External-memory buckets for the suffix array elements within each subproblem.
+    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> LCP_bucket;  // External-memory buckets for the LCP array elements within each subproblem.
+    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> sz_bucket;   // External-memory buckets for the sizes of the sorted sub-subarrays within each subproblem.
+    Padded<Spin_Lock>* lock; // Lock for each bucket.
 
     const bool ext_mem_;  // Whether to construct using external-memory or not.
 
