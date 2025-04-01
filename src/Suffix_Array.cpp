@@ -25,7 +25,7 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     LCP_(!ext_mem ? allocate<idx_t>(n_) : nullptr),
     SA_w(nullptr),
     LCP_w(nullptr),
-    ext_mem_(ext_mem),
+    ext_mem_ctr_(ext_mem),
     ext_mem_path(ext_mem_path),
     max_context(max_context ? max_context : n_),
     sample_per_part_(static_cast<idx_t>(std::ceil(32.0 * std::log(n_)))),   // c \ln n
@@ -47,7 +47,7 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
 template <typename T_idx_>
 Suffix_Array<T_idx_>::~Suffix_Array()
 {
-    if(!ext_mem_)
+    if(!ext_mem_ctr_)
         deallocate(SA_),
         deallocate(LCP_);
 }
@@ -131,7 +131,7 @@ void Suffix_Array<T_idx_>::merge_sort(idx_t* const X, idx_t* const Y, const idx_
         const auto g = [&](){ merge_sort(Y + m, X + m, n - m, W + m, LCP + m); };
 
         m < nested_par_grain_size ?
-            (f(), g()) : parlay::par_do(f, g, ext_mem_);
+            (f(), g()) : parlay::par_do(f, g, ext_mem_ctr_);
         merge(X, m, X + m, n - m, W, W + m, Y, LCP);
     }
 }
@@ -142,7 +142,7 @@ void Suffix_Array<T_idx_>::initialize()
 {
     const auto t_s = now();
 
-    if(!ext_mem_)
+    if(!ext_mem_ctr_)
     {
         SA_w = allocate<idx_t>(n_);
         LCP_w = allocate<idx_t>(n_);
@@ -161,7 +161,8 @@ void Suffix_Array<T_idx_>::initialize()
             LCP_bucket.emplace_back(LCP_bucket_file_path(p_id)),
             sz_bucket.emplace_back(sz_bucket_file_path(p_id));
 
-        lock = new Padded<Spin_Lock>[p_];
+        std::vector<Padded<Spin_Lock>> temp(p_);
+        lock.swap(temp);
     }
 
     const auto sample_count = p_ * sample_per_part_;
@@ -297,7 +298,7 @@ void Suffix_Array<T_idx_>::select_pivots()
 {
     const auto t_s = now();
 
-    !ext_mem_ ? collect_samples() : collect_samples_ext_mem();
+    !ext_mem_ctr_ ? collect_samples() : collect_samples_ext_mem();
     select_pivots_off_samples();
 
     const auto t_e = now();
@@ -554,7 +555,7 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
     const auto t_s = now();
 
     std::vector<Padded<std::size_t>> buf_cap(parlay::num_workers(), per_worker_in_mem_elem);    // Capacity of the buffers from each worker.
-    std::vector<th_local_buf_t> sub_subarr_idx_buf(parlay::num_workers());  // Buffer for the sorted sub-subarray sizes in each partition for each worker.
+    std::vector<w_local_buf_t> sub_subarr_idx_buf(parlay::num_workers());   // Buffer for the sorted sub-subarray sizes in each partition for each worker.
     std::for_each(sub_subarr_idx_buf.begin(), sub_subarr_idx_buf.end(), [this](auto& buf){ buf.unwrap() = allocate<idx_t>(p_ + 1); });
 
     const auto merge_sub_subarray =
@@ -636,7 +637,7 @@ void Suffix_Array<T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const 
     const auto g = [&](){ sort_partition(Y + flat_count_l, X + flat_count_l, n - m, S + m, LCP_y + flat_count_l, LCP_x + flat_count_l); };
 
     (flat_count_l < nested_par_grain_size || flat_count_r < nested_par_grain_size) ?
-        (f(), g()) : parlay::par_do(f, g, ext_mem_);
+        (f(), g()) : parlay::par_do(f, g, ext_mem_ctr_);
     merge(X, flat_count_l, X + flat_count_l, flat_count_r, LCP_x, LCP_x + flat_count_l, Y, LCP_y);
 }
 
@@ -688,7 +689,6 @@ void Suffix_Array<T_idx_>::clean_up_ext_mem()
         std::free(LCP_w_buf[w_id].unwrap()),
         std::free(pivot_loc_buf[w_id].unwrap());
 
-    delete[] lock;
     std::free(pivot_);
 
     const auto remove_bucket =
@@ -758,7 +758,7 @@ const T_idx_* Suffix_Array<T_idx_>::SA()
 {
     if(SA_ == nullptr)
     {
-        assert(ext_mem_);
+        assert(ext_mem_ctr_);
 
         idx_t* const pref_sum = allocate<idx_t>(p_ + 1);
         parlay::parallel_for(0, p_,
@@ -791,7 +791,7 @@ void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
     const std::size_t n = n_;
     output.write(reinterpret_cast<const char*>(&n), sizeof(std::size_t));
 
-    if(!ext_mem_)
+    if(!ext_mem_ctr_)
     {
         output.write(reinterpret_cast<const char*>(SA_), n_ * sizeof(idx_t));
         if(op_lcp)
@@ -883,7 +883,7 @@ bool Suffix_Array<T_idx_>::is_correct()
 
     if(SA_ == nullptr)  // External-memory scenario.
     {
-        assert(ext_mem_);
+        assert(ext_mem_ctr_);
 
         std::vector<Padded<idx_t*>> SA_buf_w(parlay::num_workers());    // Buffer space for each worker, to load SA parts.
         std::vector<Padded<idx_t*>> LCP_buf_w(parlay::num_workers());   // Buffer space for each worker, to load LCP-array parts.

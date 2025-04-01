@@ -14,7 +14,6 @@
 #include <string>
 #include <cstdlib>
 #include <fstream>
-#include <chrono>
 
 #include <immintrin.h>
 
@@ -31,7 +30,7 @@ class Suffix_Array
 private:
 
     typedef T_idx_ idx_t;   // Integer-type for indexing the input text.
-    typedef Padded<idx_t*> th_local_buf_t;  // Type of thread-local buffers.
+    typedef Padded<idx_t*> w_local_buf_t;   // Type of worker-local buffers.
 
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
@@ -40,65 +39,47 @@ private:
 
     const idx_t per_worker_in_mem_elem; // Maximum number of elements for each worker to keep in memory in external-memory setting.
 
-    idx_t* SA_;   // The suffix array.
-    idx_t* LCP_;  // The LCP array.
+    idx_t* SA_; // The SA in internal memory.
+    idx_t* LCP_;    // The LCP-array in internal memory.
 
-    std::vector<th_local_buf_t> SA_buf; // Memory-buffer for suffix array elements for worker threads in external-memory setting.
-    std::vector<th_local_buf_t> LCP_buf;  // Memory-buffer for LCP array elements for worker threads in external-memory setting.
+    idx_t* SA_w;    // Working space for the SA construction in internal memory.
+    idx_t* LCP_w;   // Working space for the LCP-array construction in internal memory.
 
-    idx_t* SA_w;    // Working space for the SA construction.
-    idx_t* LCP_w;   // Working space for the LCP construction.
+    std::vector<w_local_buf_t> SA_buf;  // Memory buffer for SA elements for workers in external-memory setting.
+    std::vector<w_local_buf_t> LCP_buf; // Memory buffer for LCP-array elements for workers in external-memory setting.
 
-    std::vector<th_local_buf_t> SA_w_buf; // Working space for the SA construction for worker threads in an external-memory setting.
-    std::vector<th_local_buf_t> LCP_w_buf;  // Working space for the LCP construction for worker threads in an external-memory setting.
+    std::vector<w_local_buf_t> SA_w_buf;    // Working space for the SA construction for worker threads in external-memory setting.
+    std::vector<w_local_buf_t> LCP_w_buf;   // Working space for the LCP-array construction for worker threads in external-memory setting.
 
-    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> SA_bucket;   // External-memory buckets for the suffix array elements within each subproblem.
-    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> LCP_bucket;  // External-memory buckets for the LCP array elements within each subproblem.
+    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> SA_bucket;   // External-memory buckets for the SA elements within each subproblem.
+    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> LCP_bucket;  // External-memory buckets for the LCP-array elements within each subproblem.
     std::vector<Padded<Ext_Mem_Bucket<idx_t>>> sz_bucket;   // External-memory buckets for the sizes of the sorted sub-subarrays within each subproblem.
-    Padded<Spin_Lock>* lock; // Lock for each bucket.
+    std::vector<Padded<Spin_Lock>> lock;    // Lock for each external-memory bucket.
 
-    const bool ext_mem_;  // Whether to construct using external-memory or not.
+    const bool ext_mem_ctr_;    // Whether to construct using external-memory or not.
 
-    const std::string ext_mem_path; // External-memory path-prefix.
+    const std::string ext_mem_path; // Path-prefix to external-memory buckets.
 
     const idx_t max_context;    // Maximum prefix-context length for comparing suffixes.
 
     const idx_t sample_per_part_; // Number of pivots to sample per subarray.
-    idx_t* pivot_;  // Pivots for the global suffix array.
+    idx_t* pivot_;  // Pivots for the global SA.
     idx_t* part_size_scan_; // Inclusive scan (prefix sum) of the sizes of the pivoted final partitions containing appropriate sorted sub-subarrays.
     idx_t* part_ruler_; // "Ruler" for the partitions—contains the indices of each sub-subarray in each partition.
 
-    std::vector<th_local_buf_t> pivot_loc_buf;  // Buffers to store pivot locations in sorted subarrays for worker threads.
+    std::vector<w_local_buf_t> pivot_loc_buf;   // Buffers to store pivot locations in sorted subarrays for worker threads.
 
-    std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved in some step.
+    std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved.
 
     const bool op_lcp;  // Whether to output the LCP-array.
 
     static constexpr idx_t default_subproblem_count = 8192; // Default subproblem-count to use in construction.
     static constexpr idx_t nested_par_grain_size = (1lu << 13); // Granularity for nested parallelism to kick in.
 
-    // Fields for profiling time.
-    typedef std::chrono::high_resolution_clock::time_point time_point_t;
-    constexpr static auto now = std::chrono::high_resolution_clock::now;
-    constexpr static auto duration = [](const std::chrono::nanoseconds& d) { return std::chrono::duration_cast<std::chrono::duration<double>>(d).count(); };
-
 
     // Returns the LCP length of `x` and `y`, where `min_len` is the length of
     // the shorter of `x` and `y`.
     static idx_t lcp(const char* x, const char* y, idx_t min_len);
-
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`. Optimized with some poor man's vectorization.
-    static idx_t lcp_opt(const char* x, const char* y, idx_t min_len);
-
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`. Optimized with some poor man's vectorization.
-    static idx_t lcp_opt_avx(const char* x, const char* y, idx_t min_len);
-
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`. Optimized with some poor man's vectorization.
-    // NOTE: hand unrolled version of `lcp_opt_avx`.
-    static idx_t lcp_opt_avx_unrolled(const char* x, const char* y, idx_t min_len);
 
     // Returns the LCP length of `x` and `y`, where `min_len` is the length of
     // the shorter of `x` and `y`. `N x 32` bytes of prefix comparisons are
@@ -110,12 +91,12 @@ private:
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
 
     // Merges the sorted collections of suffixes, `X` and `Y`, with lengths
-    // `len_x` and `len_y` and LCP arrays `LCP_x` and `LCP_y` respectively, into
-    // `Z`. Also constructs `Z`'s LCP array in `LCP_z`.
+    // `len_x` and `len_y` and LCP-arrays `LCP_x` and `LCP_y` respectively, into
+    // `Z`. Also constructs `Z`'s LCP-array in `LCP_z`.
     void merge(const idx_t* X, idx_t len_x, const idx_t* Y, idx_t len_y, const idx_t* LCP_x, const idx_t* LCP_y, idx_t* Z, idx_t* LCP_z) const;
 
     // Merge-sorts the suffix collection `X` of length `n` into `Y`. Also
-    // constructs the LCP array of `X` in `LCP`, using `W` as working space.
+    // constructs the LCP-array of `X` in `LCP`, using `W` as working space.
     // A necessary precondition is that `Y` must be equal to `X`.  `X` may
     // not remain the same after the sort.
     void merge_sort(idx_t* X, idx_t* Y, idx_t n, idx_t* LCP, idx_t* W) const;
@@ -123,7 +104,7 @@ private:
     // Initializes internal data structures for the construction algorithm.
     void initialize();
 
-    // Populates the suffix array with some permutation of `[0, len)`.
+    // Populates a draft SA with some permutation of `[0, len)`.
     void permute();
 
     // Sorts uniform-sized subarrays independently.
@@ -185,8 +166,8 @@ private:
 
     // Merge-sorts the collection `X` that contains `n` sorted arrays of
     // suffixes laid flat together, into `Y`. `S` contains the delimiter indices
-    // of the `n` arrays in `X`. The LCP array of sorted `X` is constructed in
-    // `LCP_y`; `LCP_x` contains the LCP arrays of the `n` arrays of `X`.
+    // of the `n` arrays in `X`. The LCP-array of sorted `X` is constructed in
+    // `LCP_y`; `LCP_x` contains the LCP-arrays of the `n` arrays of `X`.
     // A necessary precondition is that `Y` must be equal to `X`, and `LCP_y` to
     // `LCP_x`. `X` and `LCP_x` may not remain the same after the sort.
     void sort_partition(idx_t* X, idx_t* Y, idx_t n, const idx_t* S, idx_t* LCP_x, idx_t* LCP_y);
@@ -201,33 +182,18 @@ private:
     const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
     const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }
 
-    // TODO: move the following utility methods out.
-    // TODO: merge the following two using nullptr `realloc`.
-
-    // Returns pointer to a memory-allocation for `size` elements of type `T_`.
-    template <typename T_>
-    static T_* allocate(idx_t size) { return static_cast<T_*>(std::malloc(size * sizeof(T_))); }
-    // Deallocates the pointer `ptr`, allocated with `allocate`.
-    template <typename T_>
-    static void deallocate(T_* const ptr) { std::free(ptr); }
-
-    // Returns pointer to a memory-reallocation of pointer `ptr` for `size`
-    // elements of type `T_`.
-    template <typename T_>
-    static T_* reallocate(T_* const ptr, idx_t size) { return static_cast<T_*>(std::realloc(ptr, size * sizeof(T_))); }
-
-    // Returns `true` iff the suffix `x` is lexicographically smaller than the
-    // suffix `y`. Their LCP is computed in `lcp`.
-    bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
-
     // Computes in-place prefix-sum in the array `A` for the first `n` elements.
     // `A` must have size at least `n + 1`—one extra entry is required to hold
     // the total sum.
     template <typename T_>
     static void prefix_sum(T_* A, idx_t n);
 
-    // Returns true iff `X` is a valid (partial) suffix array with size `n`. An
-    // optional LCP-array `LCP_X` can be provided to check its correctness too.
+    // Returns `true` iff the suffix `x` is lexicographically smaller than the
+    // suffix `y`. Their LCP is computed in `lcp`.
+    bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
+
+    // Returns true iff `X` is a valid (partial) SA with size `n`. An optional
+    // LCP-array `LCP_X` can be provided to check its correctness too.
     bool is_sorted(const idx_t* X, idx_t n, const idx_t* LCP_X = nullptr) const;
 
 public:
@@ -254,22 +220,22 @@ public:
     // Returns the length of the text.
     idx_t n() const { return n_; }
 
-    // Returns the suffix array.
+    // Returns the SA.
     const idx_t* SA();
 
-    // Returns the LCP array.
+    // Returns the LCP-array.
     const idx_t* LCP() const { return LCP_; }
 
-    // Constructs the suffix array and the LCP array.
+    // Constructs the SA and the LCP-array.
     void construct();
 
-    // Constructs the suffix array and the LCP array using external memory.
+    // Constructs the SA and the LCP-array using external memory.
     void construct_ext_mem();
 
-    // Dumps the suffix array and the LCP array into the stream `output`.
+    // Dumps the SA and the LCP-array into the stream `output`.
     void dump(std::ofstream& output) const;
 
-    // Returns `true` iff the suffix array (and the LCP-array, if retained) are
+    // Returns `true` iff the SA (and the LCP-array, if retained) are
     // correct.
     bool is_correct();
 };
