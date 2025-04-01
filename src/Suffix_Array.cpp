@@ -616,7 +616,7 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
     std::cerr << "\n";
 
 
-    std::for_each(sub_subarr_idx_buf.cbegin(), sub_subarr_idx_buf.cend(), [](auto& buf){ std::free(buf.unwrap()); });
+    std::for_each(sub_subarr_idx_buf.cbegin(), sub_subarr_idx_buf.cend(), [](auto& buf){ deallocate(buf.unwrap()); });
 
     const auto t_e = now();
     std::cerr << "Merged the sorted subarrays in each partition. Time taken: " << duration(t_e - t_s) << " seconds.\n";
@@ -683,13 +683,13 @@ void Suffix_Array<T_idx_>::clean_up_ext_mem()
     const auto t_s = now();
 
     for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-        std::free(SA_buf[w_id].unwrap()),
-        std::free(LCP_buf[w_id].unwrap()),
-        std::free(SA_w_buf[w_id].unwrap()),
-        std::free(LCP_w_buf[w_id].unwrap()),
-        std::free(pivot_loc_buf[w_id].unwrap());
+        deallocate(SA_buf[w_id].unwrap()),
+        deallocate(LCP_buf[w_id].unwrap()),
+        deallocate(SA_w_buf[w_id].unwrap()),
+        deallocate(LCP_w_buf[w_id].unwrap()),
+        deallocate(pivot_loc_buf[w_id].unwrap());
 
-    std::free(pivot_);
+    deallocate(pivot_);
 
     const auto remove_bucket =
         [this](const idx_t p_id)
@@ -776,7 +776,7 @@ const T_idx_* Suffix_Array<T_idx_>::SA()
                 (void)read_elems;
             });
 
-        std::free(pref_sum);
+        deallocate(pref_sum);
     }
 
     return SA_;
@@ -937,7 +937,7 @@ bool Suffix_Array<T_idx_>::is_correct()
 
 
         for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-            std::free(SA_buf_w[w_id].unwrap()), std::free(LCP_buf_w[w_id].unwrap());
+            deallocate(SA_buf_w[w_id].unwrap()), deallocate(LCP_buf_w[w_id].unwrap());
     }
     else
     {
