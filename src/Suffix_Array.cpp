@@ -230,8 +230,8 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             const auto range_beg = p_id * subarr_sz, len = subarr_sz + (p_id < p_ - 1 ? 0 : n_ % p_);
             assert(len < per_worker_in_mem_elem);
 
-            const auto& buf = w_buf[w_id].unwrap();
-            const auto SA = buf.SA_buf, SA_w = buf.SA_w_buf, LCP = buf.LCP_buf, LCP_w = buf.LCP_w_buf;
+            auto& buf = w_buf[w_id].unwrap();
+            auto const SA = buf.SA_buf.data(), SA_w = buf.SA_w_buf.data(), LCP = buf.LCP_buf.data(), LCP_w = buf.LCP_w_buf.data();
             for(std::size_t i = 0; i < len; ++i)
                 SA[i] = SA_w[i] = range_beg + i;
 
@@ -245,7 +245,7 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             // sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
 
 
-            auto const P = buf.pivot_loc_buf;   // Pivot positions in this sorted subarray.
+            auto const P = buf.pivot_loc_buf.data();    // Pivot positions in this sorted subarray.
 
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
@@ -479,8 +479,8 @@ template <typename T_idx_>
 void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order)
 {
     const auto w_id = parlay::worker_id();
-    const auto& buf = w_buf[w_id].unwrap();
-    const auto SA = buf.SA_buf, LCP = buf.LCP_buf, P = buf.pivot_loc_buf;
+    auto& buf = w_buf[w_id].unwrap();
+    auto const SA = buf.SA_buf.data(), LCP = buf.LCP_buf.data(), P = buf.pivot_loc_buf.data();
 
 
     // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
@@ -552,7 +552,7 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
     const auto t_s = now();
 
     std::vector<Padded<std::size_t>> buf_cap(parlay::num_workers(), per_worker_in_mem_elem);    // Capacity of the buffers from each worker.
-    std::vector<w_local_buf_t> sub_subarr_idx_buf(parlay::num_workers());   // Buffer for the sorted sub-subarray sizes in each partition for each worker.
+    std::vector<Padded<idx_t*>> sub_subarr_idx_buf(parlay::num_workers());  // Buffer for the sorted sub-subarray sizes in each partition for each worker.
     std::for_each(sub_subarr_idx_buf.begin(), sub_subarr_idx_buf.end(), [this](auto& buf){ buf.unwrap() = allocate<idx_t>(p_ + 1); });
 
     const auto merge_sub_subarray =
@@ -571,23 +571,17 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
 
             auto& cap = buf_cap[w_id].unwrap();
             const idx_t part_sz = SA_b.size();
-            if(cap < part_sz)
-            {
-                while(cap < part_sz)
-                    cap *= 2;
-
-                SA = reallocate(SA, cap), LCP = reallocate(LCP, cap),
-                SA_w = reallocate(SA_w, cap), LCP_w = reallocate(LCP_w, cap);
-            }
+            SA.reserve_uninit(cap), LCP.reserve_uninit(cap),
+            SA_w.reserve_uninit(cap), LCP_w.reserve_uninit(cap);
 
 
             // Load buckets and fulfill `sort_partition`'s precondition.
 
-            SA_b.load(SA);
-            std::memcpy(SA_w, SA, part_sz * sizeof(idx_t));
+            SA_b.load(SA.data());
+            std::memcpy(SA_w.data(), SA.data(), part_sz * sizeof(idx_t));
 
-            LCP_b.load(LCP);
-            std::memcpy(LCP_w, LCP, part_sz * sizeof(idx_t));
+            LCP_b.load(LCP.data());
+            std::memcpy(LCP_w.data(), LCP.data(), part_sz * sizeof(idx_t));
 
             sub_subarr_idx[0] = 0;
             sz_b.load(sub_subarr_idx + 1);
@@ -597,14 +591,14 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
             assert(sub_subarr_idx[p_] == part_sz);
 
             for(idx_t i = 0; i < p_; ++i)
-                assert(is_sorted(SA + sub_subarr_idx[i], sub_subarr_idx[i + 1] - sub_subarr_idx[i], LCP + sub_subarr_idx[i]));
+                assert(is_sorted(SA.data() + sub_subarr_idx[i], sub_subarr_idx[i + 1] - sub_subarr_idx[i], LCP.data() + sub_subarr_idx[i]));
 
-            sort_partition(SA_w, SA, p_, sub_subarr_idx, LCP_w, LCP);
-            assert(is_sorted(SA, part_sz, LCP));
+            sort_partition(SA_w.data(), SA.data(), p_, sub_subarr_idx, LCP_w.data(), LCP.data());
+            assert(is_sorted(SA.data(), part_sz, LCP.data()));
 
-            SA_b.rewrite(SA, part_sz);
+            SA_b.rewrite(SA.data(), part_sz);
             if(op_lcp)  // TODO: output a json file and note this.
-                LCP_b.rewrite(LCP, part_sz);    // TODO: note that `LCP[0] = 0`, which needs to be updated when concatenating the partitions afterwards.
+                LCP_b.rewrite(LCP.data(), part_sz); // TODO: note that `LCP[0] = 0`, which needs to be updated when concatenating the partitions afterwards.
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rMerged " << solved_ << " partitions.";

@@ -29,7 +29,6 @@ class Suffix_Array
 private:
 
     typedef T_idx_ idx_t;   // Integer-type for indexing the input text.
-    typedef Padded<idx_t*> w_local_buf_t;   // Type of worker-local buffers.
 
     const char* const T_;   // The input text.
     const idx_t n_; // Length of the input text.
@@ -241,34 +240,24 @@ public:
 template <typename T_idx_>
 struct Suffix_Array<T_idx_>::Worker_Mem
 {
-    // TODO: use custom `Buffer` impl.
+    Buffer<idx_t> SA_buf;   // Memory buffer for SA elements.
+    Buffer<idx_t> LCP_buf;  // Memory buffer for LCP-array elements
 
-    idx_t* SA_buf;  // Memory buffer for SA elements.
-    idx_t* LCP_buf; // Memory buffer for LCP-array elements
+    Buffer<idx_t> SA_w_buf; // Working space for the SA construction.
+    Buffer<idx_t> LCP_w_buf;    // Working space for the LCP-array construction.
 
-    idx_t* SA_w_buf;    // Working space for the SA construction.
-    idx_t* LCP_w_buf;   // Working space for the LCP-array construction.
-
-    idx_t* pivot_loc_buf;   // Buffers to store pivot locations in the sorted subarray.
+    Buffer<idx_t> pivot_loc_buf;    // Buffers to store pivot locations in the sorted subarray.
 
 
     Worker_Mem(const Suffix_Array<T_idx_>& SA):
-          SA_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
-        , LCP_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
-        , SA_w_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
-        , LCP_w_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
-        , pivot_loc_buf(allocate<idx_t>(SA.p_ + 2))
+          SA_buf(SA.per_worker_in_mem_elem)
+        , LCP_buf(SA.per_worker_in_mem_elem)
+        , SA_w_buf(SA.per_worker_in_mem_elem)
+        , LCP_w_buf(SA.per_worker_in_mem_elem)
+        , pivot_loc_buf(SA.p_ + 2)
     {}
 
-    Worker_Mem(Worker_Mem&& rhs):
-          SA_buf(rhs.SA_buf)
-        , LCP_buf(rhs.LCP_buf)
-        , SA_w_buf(rhs.SA_w_buf)
-        , LCP_w_buf(rhs.LCP_w_buf)
-        , pivot_loc_buf(rhs.pivot_loc_buf)
-    {
-        rhs.SA_buf = rhs.LCP_buf = rhs.SA_w_buf = rhs.LCP_w_buf = rhs.pivot_loc_buf = nullptr;
-    }
+    Worker_Mem(Worker_Mem&& rhs) = default;
 
     Worker_Mem(const Worker_Mem&) = delete;
     Worker_Mem& operator=(const Worker_Mem&) = delete;
@@ -276,13 +265,7 @@ struct Suffix_Array<T_idx_>::Worker_Mem
 
     void free()
     {
-        deallocate(SA_buf), deallocate(LCP_buf), deallocate(SA_w_buf), deallocate(LCP_w_buf), deallocate(pivot_loc_buf);
-        SA_buf = LCP_buf = SA_w_buf = LCP_w_buf = pivot_loc_buf = nullptr;
-    }
-
-    ~Worker_Mem()
-    {
-        deallocate(SA_buf), deallocate(LCP_buf), deallocate(SA_w_buf), deallocate(LCP_w_buf), deallocate(pivot_loc_buf);
+        SA_buf.free(), LCP_buf.free(), SA_w_buf.free(), LCP_w_buf.free(), pivot_loc_buf.free();
     }
 };
 
