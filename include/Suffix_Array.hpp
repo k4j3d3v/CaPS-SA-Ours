@@ -14,7 +14,6 @@
 #include <string>
 #include <cstdlib>
 #include <fstream>
-
 #include <immintrin.h>
 
 // =============================================================================
@@ -45,16 +44,16 @@ private:
     idx_t* SA_w;    // Working space for the SA construction in internal memory.
     idx_t* LCP_w;   // Working space for the LCP-array construction in internal memory.
 
-    std::vector<w_local_buf_t> SA_buf;  // Memory buffer for SA elements for workers in external-memory setting.
-    std::vector<w_local_buf_t> LCP_buf; // Memory buffer for LCP-array elements for workers in external-memory setting.
+    // In-memory space for a worker to operate on a subproblem, in external-memory setting.
+    struct Worker_Mem;
 
-    std::vector<w_local_buf_t> SA_w_buf;    // Working space for the SA construction for worker threads in external-memory setting.
-    std::vector<w_local_buf_t> LCP_w_buf;   // Working space for the LCP-array construction for worker threads in external-memory setting.
+    // External-memory space corresponding to a subproblem.
+    struct Subproblem_Ext_Mem;
 
-    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> SA_bucket;   // External-memory buckets for the SA elements within each subproblem.
-    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> LCP_bucket;  // External-memory buckets for the LCP-array elements within each subproblem.
-    std::vector<Padded<Ext_Mem_Bucket<idx_t>>> sz_bucket;   // External-memory buckets for the sizes of the sorted sub-subarrays within each subproblem.
-    std::vector<Padded<Spin_Lock>> lock;    // Lock for each external-memory bucket.
+    std::vector<Padded<Worker_Mem>> w_buf;  // In-memory buffer for each worker.
+    std::vector<Padded<Subproblem_Ext_Mem>> subproblem_space;   // External-memory space for each subproblem.
+
+    std::vector<Padded<Spin_Lock>> lock;    // Lock for each external-memory bucket. TODO: use the concurrent ext-mem bucket impl, circumventing a whole-bucket lock.
 
     const bool ext_mem_ctr_;    // Whether to construct using external-memory or not.
 
@@ -66,8 +65,6 @@ private:
     idx_t* pivot_;  // Pivots for the global SA.
     idx_t* part_size_scan_; // Inclusive scan (prefix sum) of the sizes of the pivoted final partitions containing appropriate sorted sub-subarrays.
     idx_t* part_ruler_; // "Ruler" for the partitions—contains the indices of each sub-subarray in each partition.
-
-    std::vector<w_local_buf_t> pivot_loc_buf;   // Buffers to store pivot locations in sorted subarrays for worker threads.
 
     std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved.
 
@@ -238,6 +235,91 @@ public:
     // Returns `true` iff the SA (and the LCP-array, if retained) are
     // correct.
     bool is_correct();
+};
+
+
+template <typename T_idx_>
+struct Suffix_Array<T_idx_>::Worker_Mem
+{
+    // TODO: use custom `Buffer` impl.
+
+    idx_t* SA_buf;  // Memory buffer for SA elements.
+    idx_t* LCP_buf; // Memory buffer for LCP-array elements
+
+    idx_t* SA_w_buf;    // Working space for the SA construction.
+    idx_t* LCP_w_buf;   // Working space for the LCP-array construction.
+
+    idx_t* pivot_loc_buf;   // Buffers to store pivot locations in the sorted subarray.
+
+
+    Worker_Mem(const Suffix_Array<T_idx_>& SA):
+          SA_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
+        , LCP_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
+        , SA_w_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
+        , LCP_w_buf(allocate<idx_t>(SA.per_worker_in_mem_elem))
+        , pivot_loc_buf(allocate<idx_t>(SA.p_ + 2))
+    {}
+
+    Worker_Mem(Worker_Mem&& rhs):
+          SA_buf(rhs.SA_buf)
+        , LCP_buf(rhs.LCP_buf)
+        , SA_w_buf(rhs.SA_w_buf)
+        , LCP_w_buf(rhs.LCP_w_buf)
+        , pivot_loc_buf(rhs.pivot_loc_buf)
+    {
+        rhs.SA_buf = rhs.LCP_buf = rhs.SA_w_buf = rhs.LCP_w_buf = rhs.pivot_loc_buf = nullptr;
+    }
+
+    Worker_Mem(const Worker_Mem&) = delete;
+    Worker_Mem& operator=(const Worker_Mem&) = delete;
+    Worker_Mem&& operator=(Worker_Mem&&) = delete;
+
+    void free()
+    {
+        deallocate(SA_buf), deallocate(LCP_buf), deallocate(SA_w_buf), deallocate(LCP_w_buf), deallocate(pivot_loc_buf);
+        SA_buf = LCP_buf = SA_w_buf = LCP_w_buf = pivot_loc_buf = nullptr;
+    }
+
+    ~Worker_Mem()
+    {
+        deallocate(SA_buf), deallocate(LCP_buf), deallocate(SA_w_buf), deallocate(LCP_w_buf), deallocate(pivot_loc_buf);
+    }
+};
+
+
+template <typename T_idx_>
+struct Suffix_Array<T_idx_>::Subproblem_Ext_Mem
+{
+    Ext_Mem_Bucket<idx_t> SA_bucket;    // External-memory buckets for the SA elements.
+    Ext_Mem_Bucket<idx_t> LCP_bucket;   // External-memory buckets for the LCP-array elements.
+    Ext_Mem_Bucket<idx_t> sz_bucket;    // External-memory buckets for the sizes of the sorted sub-subarrays.
+
+
+    Subproblem_Ext_Mem(const Suffix_Array<T_idx_>& SA, const std::size_t p_id):
+          SA_bucket(SA.SA_bucket_file_path(p_id))
+        , LCP_bucket(SA.LCP_bucket_file_path(p_id))
+        , sz_bucket(SA.sz_bucket_file_path(p_id))
+    {}
+
+    Subproblem_Ext_Mem(Subproblem_Ext_Mem&&) = default;
+
+    Subproblem_Ext_Mem(const Subproblem_Ext_Mem&) = delete;
+    Subproblem_Ext_Mem& operator=(const Subproblem_Ext_Mem&) = delete;
+    Subproblem_Ext_Mem&& operator=(Subproblem_Ext_Mem&&) = delete;
+
+    void close()
+    {
+        SA_bucket.close(),
+        LCP_bucket.close(),
+        sz_bucket.close();
+    }
+
+    void remove()
+    {
+        SA_bucket.remove(),
+        LCP_bucket.remove(),
+        sz_bucket.remove();
+    }
 };
 
 

@@ -152,16 +152,10 @@ void Suffix_Array<T_idx_>::initialize()
     else
     {
         for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-            SA_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            LCP_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            SA_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            LCP_w_buf.emplace_back(allocate<idx_t>(per_worker_in_mem_elem)),
-            pivot_loc_buf.emplace_back(allocate<idx_t>(p_ + 2));
+            w_buf.emplace_back(*this);
 
         for(std::size_t p_id = 0; p_id < p_; ++p_id)
-            SA_bucket.emplace_back(SA_bucket_file_path(p_id)),
-            LCP_bucket.emplace_back(LCP_bucket_file_path(p_id)),
-            sz_bucket.emplace_back(sz_bucket_file_path(p_id));
+            subproblem_space.emplace_back(Subproblem_Ext_Mem(*this, p_id));
 
         std::vector<Padded<Spin_Lock>> temp(p_);
         lock.swap(temp);
@@ -236,7 +230,8 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             const auto range_beg = p_id * subarr_sz, len = subarr_sz + (p_id < p_ - 1 ? 0 : n_ % p_);
             assert(len < per_worker_in_mem_elem);
 
-            const auto SA = SA_buf[w_id].unwrap(), SA_w = SA_w_buf[w_id].unwrap(), LCP = LCP_buf[w_id].unwrap(), LCP_w = LCP_w_buf[w_id].unwrap();
+            const auto& buf = w_buf[w_id].unwrap();
+            const auto SA = buf.SA_buf, SA_w = buf.SA_w_buf, LCP = buf.LCP_buf, LCP_w = buf.LCP_w_buf;
             for(std::size_t i = 0; i < len; ++i)
                 SA[i] = SA_w[i] = range_beg + i;
 
@@ -250,7 +245,7 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             // sample_pivots(SA, len, sample_per_part_, pivot_ + pivot_off);
 
 
-            auto const P = pivot_loc_buf[w_id].unwrap();    // Pivot positions in this sorted subarray.
+            auto const P = buf.pivot_loc_buf;   // Pivot positions in this sorted subarray.
 
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
@@ -267,9 +262,7 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
     std::cerr << "\n";
 
     for(idx_t p_id = 0; p_id < p_; ++p_id)
-        SA_bucket[p_id].unwrap().close(),
-        LCP_bucket[p_id].unwrap().close(),
-        sz_bucket[p_id].unwrap().close();
+        subproblem_space[p_id].unwrap().close();
 
     const auto t_e = now();
     std::cerr << "Sorted the subarrays independently. Time taken: " << duration(t_e - t_s) << " seconds.\n";
@@ -486,7 +479,8 @@ template <typename T_idx_>
 void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order)
 {
     const auto w_id = parlay::worker_id();
-    const auto SA = SA_buf[w_id].unwrap(), LCP = LCP_buf[w_id].unwrap(), P = pivot_loc_buf[w_id].unwrap();
+    const auto& buf = w_buf[w_id].unwrap();
+    const auto SA = buf.SA_buf, LCP = buf.LCP_buf, P = buf.pivot_loc_buf;
 
 
     // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
@@ -498,7 +492,8 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<id
 
         lock[part_id].unwrap().lock();
 
-        auto &SA_b = SA_bucket[part_id].unwrap(), &LCP_b = LCP_bucket[part_id].unwrap(), &sz_b = sz_bucket[part_id].unwrap();
+        auto& b = subproblem_space[part_id].unwrap();
+        auto &SA_b = b.SA_bucket, &LCP_b = b.LCP_bucket, &sz_b = b.sz_bucket;
         SA_b.add(SA + P[part_id], sub_subarr_sz);
         LCP_b.add(LCP + P[part_id], sub_subarr_sz);
         sz_b.add(sub_subarr_sz);
@@ -564,10 +559,12 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
         [&](const idx_t p_id)
         {
             const auto w_id = parlay::worker_id();
-            auto &SA = SA_buf[w_id].unwrap(), &LCP = LCP_buf[w_id].unwrap(), &SA_w = SA_w_buf[w_id].unwrap(), &LCP_w = LCP_w_buf[w_id].unwrap();
+            auto& buf = w_buf[w_id].unwrap();
+            auto &SA = buf.SA_buf, &LCP = buf.LCP_buf, &SA_w = buf.SA_w_buf, &LCP_w = buf.LCP_w_buf;
             auto sub_subarr_idx = sub_subarr_idx_buf[w_id].unwrap();
 
-            auto &SA_b = SA_bucket[p_id].unwrap(), &LCP_b = LCP_bucket[p_id].unwrap(), &sz_b = sz_bucket[p_id].unwrap();
+            auto& b = subproblem_space[p_id].unwrap();
+            auto &SA_b = b.SA_bucket, &LCP_b = b.LCP_bucket, &sz_b = b.sz_bucket;
             assert(SA_b.size() == LCP_b.size());
             assert(sz_b.size() == p_);
 
@@ -685,17 +682,11 @@ void Suffix_Array<T_idx_>::clean_up_ext_mem()
     const auto t_s = now();
 
     for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-        deallocate(SA_buf[w_id].unwrap()),
-        deallocate(LCP_buf[w_id].unwrap()),
-        deallocate(SA_w_buf[w_id].unwrap()),
-        deallocate(LCP_w_buf[w_id].unwrap()),
-        deallocate(pivot_loc_buf[w_id].unwrap());
+        w_buf[w_id].unwrap().free();
 
     deallocate(pivot_);
 
-    const auto remove_bucket =
-        [this](const idx_t p_id)
-        { SA_bucket[p_id].unwrap().remove(), LCP_bucket[p_id].unwrap().remove(), sz_bucket[p_id].unwrap().remove(); };
+    const auto remove_bucket = [this](const idx_t p_id){ subproblem_space[p_id].unwrap().remove(); };
     parlay::parallel_for(0, p_, remove_bucket, 1);
 
     const auto t_e = now();
@@ -764,7 +755,7 @@ const T_idx_* Suffix_Array<T_idx_>::SA()
 
         idx_t* const pref_sum = allocate<idx_t>(p_ + 1);
         parlay::parallel_for(0, p_,
-            [&](const std::size_t idx){ pref_sum[idx] = SA_bucket[idx].unwrap().size(); });
+            [&](const std::size_t idx){ pref_sum[idx] = subproblem_space[idx].unwrap().SA_bucket.size(); });
 
         prefix_sum(pref_sum, p_);
 
@@ -773,8 +764,9 @@ const T_idx_* Suffix_Array<T_idx_>::SA()
         parlay::parallel_for(0, p_,
             [&](const std::size_t idx)
             {
-                const auto read_elems = SA_bucket[idx].unwrap().load(SA_ + pref_sum[idx]);
-                assert(read_elems == SA_bucket[idx].unwrap().size());
+                const auto& SA_bucket = subproblem_space[idx].unwrap().SA_bucket;
+                const auto read_elems = SA_bucket.load(SA_ + pref_sum[idx]);
+                assert(read_elems == SA_bucket.size());
                 (void)read_elems;
             });
 
@@ -894,7 +886,7 @@ bool Suffix_Array<T_idx_>::is_correct()
         std::vector<Padded<idx_t>> s_last(p_);  // Last suffix in each part.
 
         std::size_t max_b_size = 0; // Maximum bucket-size.
-        std::for_each(SA_bucket.cbegin(), SA_bucket.cend(), [&](const auto& b){ max_b_size = std::max(max_b_size, b.unwrap().size()); });
+        std::for_each(subproblem_space.cbegin(), subproblem_space.cend(), [&](const auto& b){ max_b_size = std::max(max_b_size, b.unwrap().SA_bucket.size()); });
 
         for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
             SA_buf_w[w_id] = allocate<idx_t>(max_b_size),
@@ -904,8 +896,9 @@ bool Suffix_Array<T_idx_>::is_correct()
         // Method to check if a part is sorted.
         const auto check_sorted = [&](const std::size_t p_id)
         {
-            const auto& SA_b = SA_bucket[p_id].unwrap();
-            const auto& LCP_b = LCP_bucket[p_id].unwrap();
+            const auto& b = subproblem_space[p_id].unwrap();
+            const auto& SA_b = b.SA_bucket;
+            const auto& LCP_b = b.LCP_bucket;
             const auto sz = SA_b.size();
             assert(sz == LCP_b.size());
             auto SA_buf = SA_buf_w[parlay::worker_id()].unwrap(), LCP_buf = LCP_buf_w[parlay::worker_id()].unwrap();
