@@ -42,6 +42,10 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_idx_>& suf_arr, std::ofstream& o
 
 int main(int argc, char* argv[])
 {
+#ifndef NDEBUG
+    std::cout << "Warning: Executing in Debug Mode.\n";
+#endif
+
     // TODO: standardize the API.
     constexpr auto arg_count = 3;
     if(argc < arg_count)
