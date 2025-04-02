@@ -226,7 +226,7 @@ public:
     // Returns the LCP-array.
     const idx_t* LCP() const { return LCP_; }
 
-    // Constructs the SA and the LCP-array.
+    // Constructs the SA and the LCP-array in internal memory.
     void construct();
 
     // Constructs the SA and the LCP-array using external memory.

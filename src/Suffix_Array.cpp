@@ -146,6 +146,8 @@ void Suffix_Array<T_idx_>::initialize()
     {
         SA_w = allocate<idx_t>(n_);
         LCP_w = allocate<idx_t>(n_);
+        part_size_scan_ = allocate<idx_t>(p_ + 1);
+        part_ruler_ = allocate<idx_t>(p_ * (p_ + 1));
     }
     else
     {
