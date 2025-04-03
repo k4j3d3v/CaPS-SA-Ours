@@ -571,9 +571,8 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
 
             auto& cap = buf_cap[w_id].unwrap();
             const idx_t part_sz = SA_b.size();
-            SA.reserve_uninit(cap), LCP.reserve_uninit(cap),
-            SA_w.reserve_uninit(cap), LCP_w.reserve_uninit(cap);
-
+            SA.reserve_uninit(part_sz), LCP.reserve_uninit(part_sz),
+            SA_w.reserve_uninit(part_sz), LCP_w.reserve_uninit(part_sz);
 
             // Load buckets and fulfill `sort_partition`'s precondition.
 
