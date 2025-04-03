@@ -138,6 +138,8 @@ private:
     // Returns the first index `idx` into the sorted suffix collection `X` of
     // length `n` such that `X[idx]` is strictly greater than the query pattern
     // `P` of length `P_len`.
+    // NB: it is not 'strict' currently, and rather provides an upper bound for
+    // a fixed-sized prefix of `P` when it is large, for faster performance.
     idx_t upper_bound(const idx_t* X, idx_t n, const char* P, idx_t P_len) const;
 
     // Collates the sub-subarrays delineated by the pivot locations in each

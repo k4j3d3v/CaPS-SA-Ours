@@ -223,17 +223,17 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
     }
 
     const auto subarr_sz = n_ / p_; // Size of each subarray to sort independently.
-    const auto sort_subarr =
+    const auto sort_distribute_subarr =
         [&](const idx_t p_id)
         {
             const auto w_id = parlay::worker_id();
             const auto range_beg = p_id * subarr_sz, len = subarr_sz + (p_id < p_ - 1 ? 0 : n_ % p_);
-            assert(len < per_worker_in_mem_elem);
-
             auto& buf = w_buf[w_id].unwrap();
+            assert(len < buf.SA_buf.capacity());
+
             auto const SA = buf.SA_buf.data(), SA_w = buf.SA_w_buf.data(), LCP = buf.LCP_buf.data(), LCP_w = buf.LCP_w_buf.data();
             for(std::size_t i = 0; i < len; ++i)
-                SA[i] = SA_w[i] = range_beg + i;
+                SA[i] = SA_w[i] = range_beg + i;    // Populate a draft SA for this subproblem.
 
             merge_sort(SA_w, SA, len, LCP, LCP_w);
             assert(is_sorted(SA, len, LCP));
@@ -258,14 +258,14 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
         };
 
     solved_ = 0;
-    parlay::parallel_for(0, p_, sort_subarr, 1);
+    parlay::parallel_for(0, p_, sort_distribute_subarr, 1);
     std::cerr << "\n";
 
     for(idx_t p_id = 0; p_id < p_; ++p_id)
         subproblem_space[p_id].unwrap().close();
 
     const auto t_e = now();
-    std::cerr << "Sorted the subarrays independently. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+    std::cerr << "Sorted the subarrays independently and collated them into partitions. Time taken: " << duration(t_e - t_s) << " seconds.\n";
 }
 
 
@@ -282,7 +282,7 @@ void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, co
 template <typename T_idx_>
 void Suffix_Array<T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
 {
-    const auto gap = n / (m + 1);
+    const auto gap = n / (m + 1);   // Distance-gap between pivots.
     for(idx_t i = 0; i < m; ++i)
         P[i] = r_beg + (i + 1) * gap - 1;
 }
@@ -484,11 +484,13 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<id
 
 
     // Different sequences of parts-copying (dispersion) by different workers to minimize lock-contention.
-    for(const auto part_id : route_order)
+    for(const auto part_id : route_order)   // TODO: why not in parallel?
     {
         const auto sub_subarr_sz = P[part_id + 1] - P[part_id];
         if(sub_subarr_sz > 0)
-            LCP[P[part_id]] = 0;    // An independent sorted segments first LCP-value is 0.
+            LCP[P[part_id]] = 0;    // An independent sorted segment's first LCP-value is 0.
+
+        assert(is_sorted(SA + P[part_id], sub_subarr_sz, LCP + P[part_id]));
 
         lock[part_id].unwrap().lock();
 
@@ -497,8 +499,6 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<id
         SA_b.add(SA + P[part_id], sub_subarr_sz);
         LCP_b.add(LCP + P[part_id], sub_subarr_sz);
         sz_b.add(sub_subarr_sz);
-
-        assert(is_sorted(SA + P[part_id], sub_subarr_sz, LCP + P[part_id]));
 
         lock[part_id].unwrap().unlock();
     }
@@ -551,7 +551,6 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
 {
     const auto t_s = now();
 
-    std::vector<Padded<std::size_t>> buf_cap(parlay::num_workers(), per_worker_in_mem_elem);    // Capacity of the buffers from each worker.
     std::vector<Padded<idx_t*>> sub_subarr_idx_buf(parlay::num_workers());  // Buffer for the sorted sub-subarray sizes in each partition for each worker.
     std::for_each(sub_subarr_idx_buf.begin(), sub_subarr_idx_buf.end(), [this](auto& buf){ buf.unwrap() = allocate<idx_t>(p_ + 1); });
 
@@ -568,8 +567,6 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
             assert(SA_b.size() == LCP_b.size());
             assert(sz_b.size() == p_);
 
-
-            auto& cap = buf_cap[w_id].unwrap();
             const idx_t part_sz = SA_b.size();
             SA.reserve_uninit(part_sz), LCP.reserve_uninit(part_sz),
             SA_w.reserve_uninit(part_sz), LCP_w.reserve_uninit(part_sz);
