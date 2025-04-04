@@ -655,29 +655,24 @@ void Suffix_Array<T_idx_>::clean_up()
 {
     const auto t_s = now();
 
-    deallocate(SA_w), deallocate(LCP_w);
+    if(!ext_mem_ctr_)
+    {
+        deallocate(SA_w), deallocate(LCP_w);
 
-    deallocate(pivot_);
-    deallocate(part_size_scan_);
-    deallocate(part_ruler_);
+        deallocate(pivot_);
+        deallocate(part_size_scan_);
+        deallocate(part_ruler_);
+    }
+    else
+    {
+        for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
+            w_buf[w_id].unwrap().free();
 
-    const auto t_e = now();
-    std::cerr << "Released the temporary data structures. Time taken: " << duration(t_e - t_s) << " seconds.\n";
-}
+        deallocate(pivot_);
 
-
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::clean_up_ext_mem()
-{
-    const auto t_s = now();
-
-    for(std::size_t w_id = 0; w_id < parlay::num_workers(); ++w_id)
-        w_buf[w_id].unwrap().free();
-
-    deallocate(pivot_);
-
-    const auto remove_bucket = [this](const idx_t p_id){ subproblem_space[p_id].unwrap().remove(); };
-    parlay::parallel_for(0, p_, remove_bucket, 1);
+        const auto remove_bucket = [this](const idx_t p_id){ subproblem_space[p_id].unwrap().remove(); };
+        parlay::parallel_for(0, p_, remove_bucket, 1);
+    }
 
     const auto t_e = now();
     std::cerr << "Released the temporary data structures. Time taken: " << duration(t_e - t_s) << " seconds.\n";
@@ -729,7 +724,7 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 
     merge_sub_subarrays_ext_mem();
 
-    clean_up_ext_mem();
+    clean_up();
 
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
