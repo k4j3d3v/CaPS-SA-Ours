@@ -42,22 +42,28 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_idx_>& suf_arr, std::ofstream& o
 
 int main(int argc, char* argv[])
 {
+#ifndef NDEBUG
+    std::cout << "Warning: Executing in Debug Mode.\n";
+#endif
+
     // TODO: standardize the API.
-    constexpr auto arg_count = 3;
+    constexpr auto arg_count = 4;
     if(argc < arg_count)
     {
-        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <(optional)-subproblem-count> <(optional)-bounded-context> <(optional)--pretty-print>\n";
+        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <work_path_prefix> <(optional)-subproblem-count> <(optional)-bounded-context>>\n";
         std::exit(EXIT_FAILURE);
     }
 
 
     const std::string ip_path(argv[1]);
     const std::string op_path(argv[2]);
-    const std::size_t subproblem_count(argc >= 4 ? std::atoi(argv[3]) : 0);
-    const std::size_t max_context(argc >= 5 ? std::atoi(argv[4]) : 0);
+    const std::string ext_mem_path(argv[3]);
+    const std::size_t subproblem_count(argc >= 5 ? std::atoi(argv[4]) : 0);
+    const std::size_t max_context(argc >= 6 ? std::atoi(argv[5]) : 0);
 
     std::string text;
     read_input(ip_path, text);
+/*
     constexpr char lookup[4] = {'A', 'C', 'T', 'G'};
     size_t len = text.size();
     parlay::blocked_for(0, text.size(), 65536, 
@@ -68,22 +74,24 @@ int main(int argc, char* argv[])
           text[j] = lookup[((std::toupper(c) & 0x6) >> 1)];
         };
     });
-
+*/
     std::ofstream output(op_path);
 
     std::size_t n = text.length();
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), subproblem_count, max_context);
-        suf_arr.construct();
-        suf_arr.dump(output);
+        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
+        // suf_arr.construct();
+        suf_arr.construct_ext_mem();
+        // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), subproblem_count, max_context);
-        suf_arr.construct();
-        suf_arr.dump(output);
+        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
+        // suf_arr.construct();
+        suf_arr.construct_ext_mem();
+        // suf_arr.dump(output);
     }
 
     output.close();

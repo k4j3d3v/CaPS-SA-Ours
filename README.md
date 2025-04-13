@@ -22,5 +22,5 @@ This installs `caps_sa` in a sub-directory named `bin`, inside the project root 
 
   ```bash
   export PARLAY_NUM_THREADS=<thread-count>
-  caps_sa <input_file> <output_file>
+  caps_sa <input_path> <output_path> <work_path_prefix>
   ```
