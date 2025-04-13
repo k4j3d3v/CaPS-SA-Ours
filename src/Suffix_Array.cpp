@@ -261,8 +261,12 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
     parlay::parallel_for(0, p_, sort_distribute_subarr, 1);
     std::cerr << "\n";
 
-    for(idx_t p_id = 0; p_id < p_; ++p_id)
+    parlay::parallel_for(0, p_,
+    [&](const auto p_id)
+    {
         subproblem_space[p_id].unwrap().close();
+    }
+    );
 
     const auto t_e = now();
     std::cerr << "Sorted the subarrays independently and collated them into partitions. Time taken: " << duration(t_e - t_s) << " seconds.\n";
