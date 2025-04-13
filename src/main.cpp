@@ -47,10 +47,10 @@ int main(int argc, char* argv[])
 #endif
 
     // TODO: standardize the API.
-    constexpr auto arg_count = 3;
+    constexpr auto arg_count = 4;
     if(argc < arg_count)
     {
-        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <(optional)-subproblem-count> <(optional)-bounded-context> <(optional)--pretty-print>\n";
+        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <work_path_prefix> <(optional)-subproblem-count> <(optional)-bounded-context>>\n";
         std::exit(EXIT_FAILURE);
     }
 
@@ -63,6 +63,7 @@ int main(int argc, char* argv[])
 
     std::string text;
     read_input(ip_path, text);
+/*
     constexpr char lookup[4] = {'A', 'C', 'T', 'G'};
     size_t len = text.size();
     parlay::blocked_for(0, text.size(), 65536, 
@@ -73,7 +74,7 @@ int main(int argc, char* argv[])
           text[j] = lookup[((std::toupper(c) & 0x6) >> 1)];
         };
     });
-
+*/
     std::ofstream output(op_path);
 
     std::size_t n = text.length();
