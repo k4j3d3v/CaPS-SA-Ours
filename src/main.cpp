@@ -1,8 +1,7 @@
 
 #include "Suffix_Array.hpp"
-#include "parlay/parallel.h"
 
-#include <algorithm>
+#include <vector>
 #include <string>
 #include <cstdlib>
 #include <limits>
@@ -11,7 +10,8 @@
 #include <filesystem>
 
 
-void read_input(const std::string& ip_path, std::string& text)
+template <typename T_seq_>
+void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
 {
     std::error_code ec;
     const auto file_size = std::filesystem::file_size(ip_path, ec);
@@ -22,9 +22,11 @@ void read_input(const std::string& ip_path, std::string& text)
         std::exit(EXIT_FAILURE);
     }
 
-    text.resize(file_size);
+    assert(file_size % sizeof(T_seq_) == 0);
+
+    text.resize(file_size / sizeof(T_seq_));
     std::ifstream input(ip_path);
-    input.read(text.data(), file_size);
+    input.read(reinterpret_cast<char*>(text.data()), file_size);
     input.close();
 }
 
@@ -61,7 +63,9 @@ int main(int argc, char* argv[])
     const std::size_t subproblem_count(argc >= 5 ? std::atoi(argv[4]) : 0);
     const std::size_t max_context(argc >= 6 ? std::atoi(argv[5]) : 0);
 
-    std::string text;
+    typedef char T_seq_;
+
+    std::vector<T_seq_> text;
     read_input(ip_path, text);
 /*
     constexpr char lookup[4] = {'A', 'C', 'T', 'G'};
@@ -77,18 +81,18 @@ int main(int argc, char* argv[])
 */
     std::ofstream output(op_path);
 
-    std::size_t n = text.length();
+    std::size_t n = text.size();
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.data(), text.size(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
         // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), true, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.data(), text.size(), true, ext_mem_path, subproblem_count, max_context);
         // suf_arr.construct();
         suf_arr.construct_ext_mem();
         // suf_arr.dump(output);
