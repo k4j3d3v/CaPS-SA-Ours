@@ -28,7 +28,7 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     ext_mem_ctr_(ext_mem),
     ext_mem_path(ext_mem_path),
     max_context(max_context ? max_context : n_),
-    sample_per_part_(static_cast<idx_t>(std::ceil(32.0 * std::log(n_)))),   // c \ln n
+    sample_per_part_(std::min(static_cast<idx_t>(std::ceil(32.0 * std::log(n_))), n_ / p_ - 1)),    // (c \ln n) or (|subarray| - 1)
     pivot_(nullptr),
     part_size_scan_(nullptr),
     part_ruler_(nullptr),
