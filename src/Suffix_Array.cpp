@@ -20,7 +20,7 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
     T_(T),
     n_(n),
     p_(std::min(subproblem_count > 0 ? subproblem_count : default_subproblem_count, n / 16)),   // TODO: fix subproblem-count for small `n`.
-    per_worker_in_mem_elem(!ext_mem ? 0 : 2 * static_cast<idx_t>(std::ceil(n_ / p_))),
+    per_worker_in_mem_elem(!ext_mem ? 0 : static_cast<idx_t>(std::ceil(n_ / p_))),
     SA_(!ext_mem ? allocate<idx_t>(n_) : nullptr),
     LCP_(!ext_mem ? allocate<idx_t>(n_) : nullptr),
     SA_w(nullptr),
@@ -232,8 +232,9 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
             const auto w_id = parlay::worker_id();
             const auto range_beg = p_id * subarr_sz, len = subarr_sz + (p_id < p_ - 1 ? 0 : n_ % p_);
             auto& buf = w_buf[w_id].unwrap();
-            assert(len < buf.SA_buf.capacity());
+            buf.reserve_uninit(len);
 
+            assert(len <= buf.SA_buf.capacity());
             auto const SA = buf.SA_buf.data(), SA_w = buf.SA_w_buf.data(), LCP = buf.LCP_buf.data(), LCP_w = buf.LCP_w_buf.data();
             for(std::size_t i = 0; i < len; ++i)
                 SA[i] = SA_w[i] = range_beg + i;    // Populate a draft SA for this subproblem.
@@ -566,7 +567,6 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
         {
             const auto w_id = parlay::worker_id();
             auto& buf = w_buf[w_id].unwrap();
-            auto &SA = buf.SA_buf, &LCP = buf.LCP_buf, &SA_w = buf.SA_w_buf, &LCP_w = buf.LCP_w_buf;
             auto sub_subarr_idx = sub_subarr_idx_buf[w_id].unwrap();
 
             auto& b = subproblem_space[p_id].unwrap();
@@ -575,8 +575,9 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
             assert(sz_b.size() == p_);
 
             const idx_t part_sz = SA_b.size();
-            SA.reserve_uninit(part_sz), LCP.reserve_uninit(part_sz),
-            SA_w.reserve_uninit(part_sz), LCP_w.reserve_uninit(part_sz);
+            buf.reserve_uninit(part_sz);
+
+            auto &SA = buf.SA_buf, &LCP = buf.LCP_buf, &SA_w = buf.SA_w_buf, &LCP_w = buf.LCP_w_buf;
 
             // Load buckets and fulfill `sort_partition`'s precondition.
 

@@ -262,10 +262,11 @@ struct Suffix_Array<T_idx_>::Worker_Mem
     Worker_Mem& operator=(const Worker_Mem&) = delete;
     Worker_Mem&& operator=(Worker_Mem&&) = delete;
 
-    void free()
-    {
-        SA_buf.free(), LCP_buf.free(), SA_w_buf.free(), LCP_w_buf.free(), pivot_loc_buf.free();
-    }
+    auto capacity() const { return SA_buf.capacity(); }
+
+    void reserve_uninit(const std::size_t cap) { SA_buf.reserve_uninit(cap), LCP_buf.reserve_uninit(cap), SA_w_buf.reserve_uninit(cap), LCP_w_buf.reserve_uninit(cap); }
+
+    void free() { SA_buf.free(), LCP_buf.free(), SA_w_buf.free(), LCP_w_buf.free(), pivot_loc_buf.free(); }
 };
 
 
