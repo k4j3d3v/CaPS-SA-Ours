@@ -21,16 +21,17 @@
 namespace CaPS_SA
 {
 
-// The Suffix Array (SA) and the Longest Common Prefix (LCP) array constructor
-// class for some given sequence.
-template <typename T_idx_>
+// The Suffix Array (SA) and the Longest Common Prefix (LCP) array (of type
+// `T_idx`) constructor class for some given sequence of elements of type
+// `T_seq_`.
+template <typename T_seq_, typename T_idx_>
 class Suffix_Array
 {
 private:
 
     typedef T_idx_ idx_t;   // Integer-type for indexing the input text.
 
-    const char* const T_;   // The input text.
+    const T_seq_* const T_; // The input text.
     const idx_t n_; // Length of the input text.
 
     const idx_t p_; // Count of subproblems used in construction.
@@ -80,8 +81,12 @@ private:
     // Returns the LCP length of `x` and `y`, where `min_len` is the length of
     // the shorter of `x` and `y`. `N x 32` bytes of prefix comparisons are
     // loop-unrolled.
-    template <std::size_t N = 8>
+    template <std::size_t N>
     static idx_t LCP(const char* x, const char* y, idx_t min_len);
+
+    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
+    // the shorter of `x` and `y`.
+    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t min_len);
 
     // Returns the LCP length of the `32 x N`-bytes prefix of `x` and `y`.
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
@@ -140,7 +145,7 @@ private:
     // `P` of length `P_len`.
     // NB: it is not 'strict' currently, and rather provides an upper bound for
     // a fixed-sized prefix of `P` when it is large, for faster performance.
-    idx_t upper_bound(const idx_t* X, idx_t n, const char* P, idx_t P_len) const;
+    idx_t upper_bound(const idx_t* X, idx_t n, const T_seq_* P, idx_t P_len) const;
 
     // Collates the sub-subarrays delineated by the pivot locations in each
     // sorted subarray, present in `P`, into appropriate partitions.
@@ -200,7 +205,7 @@ public:
     // construction problem into can be provided with `subproblem_count`, and
     // the maximum prefix-context length for the suffixes can be bounded by
     // `max_context`.
-    Suffix_Array(const char* T, idx_t n, bool ext_mem = false, const std::string& ext_mem_path = ".", idx_t subproblem_count = 0, idx_t max_context = 0);
+    Suffix_Array(const T_seq_* T, idx_t n, bool ext_mem = false, const std::string& ext_mem_path = ".", idx_t subproblem_count = 0, idx_t max_context = 0);
 
     Suffix_Array(const Suffix_Array&) = delete;
     Suffix_Array& operator=(const Suffix_Array&) = delete;
@@ -210,7 +215,7 @@ public:
     ~Suffix_Array();
 
     // Returns the text.
-    const char* T() const { return T_; }
+    const T_seq_* T() const { return T_; }
 
     // Returns the length of the text.
     idx_t n() const { return n_; }
@@ -236,8 +241,8 @@ public:
 };
 
 
-template <typename T_idx_>
-struct Suffix_Array<T_idx_>::Worker_Mem
+template <typename T_seq_, typename T_idx_>
+struct Suffix_Array<T_seq_, T_idx_>::Worker_Mem
 {
     Buffer<idx_t> SA_buf;   // Memory buffer for SA elements.
     Buffer<idx_t> LCP_buf;  // Memory buffer for LCP-array elements
@@ -248,7 +253,7 @@ struct Suffix_Array<T_idx_>::Worker_Mem
     Buffer<idx_t> pivot_loc_buf;    // Buffers to store pivot locations in the sorted subarray.
 
 
-    Worker_Mem(const Suffix_Array<T_idx_>& SA):
+    Worker_Mem(const Suffix_Array& SA):
           SA_buf(SA.per_worker_in_mem_elem)
         , LCP_buf(SA.per_worker_in_mem_elem)
         , SA_w_buf(SA.per_worker_in_mem_elem)
@@ -270,15 +275,15 @@ struct Suffix_Array<T_idx_>::Worker_Mem
 };
 
 
-template <typename T_idx_>
-struct Suffix_Array<T_idx_>::Subproblem_Ext_Mem
+template <typename T_seq_, typename T_idx_>
+struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 {
     Ext_Mem_Bucket<idx_t> SA_bucket;    // External-memory buckets for the SA elements.
     Ext_Mem_Bucket<idx_t> LCP_bucket;   // External-memory buckets for the LCP-array elements.
     Ext_Mem_Bucket<idx_t> sz_bucket;    // External-memory buckets for the sizes of the sorted sub-subarrays.
 
 
-    Subproblem_Ext_Mem(const Suffix_Array<T_idx_>& SA, const std::size_t p_id):
+    Subproblem_Ext_Mem(const Suffix_Array& SA, const std::size_t p_id):
           SA_bucket(SA.SA_bucket_file_path(p_id))
         , LCP_bucket(SA.LCP_bucket_file_path(p_id))
         , sz_bucket(SA.sz_bucket_file_path(p_id))
@@ -306,8 +311,8 @@ struct Suffix_Array<T_idx_>::Subproblem_Ext_Mem
 };
 
 
-template <typename T_idx_>
-inline T_idx_ Suffix_Array<T_idx_>::lcp(const char* const x, const char* const y, const idx_t min_len)
+template <typename T_seq_, typename T_idx_>
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char* const y, const idx_t min_len)
 {
     idx_t l = 0;
     while(l < min_len && x[l] == y[l])
@@ -317,9 +322,9 @@ inline T_idx_ Suffix_Array<T_idx_>::lcp(const char* const x, const char* const y
 }
 
 
-template <typename T_idx_>
+template <typename T_seq_, typename T_idx_>
 template <std::size_t N>
-inline T_idx_ Suffix_Array<T_idx_>::LCP(const char* const x, const char* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char* const y, const idx_t min_len)
 {
     idx_t lcp = 0;
 
@@ -346,9 +351,9 @@ inline T_idx_ Suffix_Array<T_idx_>::LCP(const char* const x, const char* const y
 }
 
 
-template <typename T_idx_>
+template <typename T_seq_, typename T_idx_>
 template <std::size_t N>
-inline T_idx_ Suffix_Array<T_idx_>::LCP_unrolled(const char* const x, const char* const y)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, const char* const y)
 {
     if constexpr(N == 0)
         return 0;
@@ -363,6 +368,13 @@ inline T_idx_ Suffix_Array<T_idx_>::LCP_unrolled(const char* const x, const char
 
         return 32 + LCP_unrolled<N - 1>(x + 32, y + 32);
     }
+}
+
+
+template <typename T_seq_, typename T_idx_>
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t min_len)
+{
+    return LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), min_len * sizeof(T_seq_)) / sizeof(T_seq_);
 }
 
 }

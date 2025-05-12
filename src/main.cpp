@@ -31,8 +31,8 @@ void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
 }
 
 
-template <typename T_idx_>
-void pretty_print(const CaPS_SA::Suffix_Array<T_idx_>& suf_arr, std::ofstream& output)
+template <typename T_seq_, typename T_idx_>
+void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofstream& output)
 {
     const std::size_t n = suf_arr.n();
     for(std::size_t i = 0; i < n; ++i)
@@ -86,13 +86,13 @@ int main(int argc, char* argv[])
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<T_seq_, uint64_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }

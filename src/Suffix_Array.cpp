@@ -15,8 +15,8 @@
 namespace CaPS_SA
 {
 
-template <typename T_idx_>
-Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const bool ext_mem, const std::string& ext_mem_path, const idx_t subproblem_count, const idx_t max_context):
+template <typename T_seq_, typename T_idx_>
+Suffix_Array<T_seq_, T_idx_>::Suffix_Array(const T_seq_* const T, const idx_t n, const bool ext_mem, const std::string& ext_mem_path, const idx_t subproblem_count, const idx_t max_context):
     T_(T),
     n_(n),
     p_(std::min(subproblem_count > 0 ? subproblem_count : default_subproblem_count, n / 16)),   // TODO: fix subproblem-count for small `n`.
@@ -44,8 +44,8 @@ Suffix_Array<T_idx_>::Suffix_Array(const char* const T, const idx_t n, const boo
 }
 
 
-template <typename T_idx_>
-Suffix_Array<T_idx_>::~Suffix_Array()
+template <typename T_seq_, typename T_idx_>
+Suffix_Array<T_seq_, T_idx_>::~Suffix_Array()
 {
     if(!ext_mem_ctr_)
         deallocate(SA_),
@@ -53,8 +53,8 @@ Suffix_Array<T_idx_>::~Suffix_Array()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_t* Y, idx_t len_y, const idx_t* LCP_x, const idx_t* LCP_y, idx_t* Z, idx_t* LCP_z) const
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_t* Y, idx_t len_y, const idx_t* LCP_x, const idx_t* LCP_y, idx_t* Z, idx_t* LCP_z) const
 {
     idx_t m = 0;    // LCP of the last compared pair.
     idx_t l_x;  // LCP(X_i, X_{i - 1}).
@@ -120,8 +120,8 @@ void Suffix_Array<T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_t* Y, id
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::merge_sort(idx_t* const X, idx_t* const Y, const idx_t n, idx_t* const LCP, idx_t* const W) const
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::merge_sort(idx_t* const X, idx_t* const Y, const idx_t n, idx_t* const LCP, idx_t* const W) const
 {
     assert(std::memcmp(X, Y, n * sizeof(idx_t)) == 0);
 
@@ -140,8 +140,8 @@ void Suffix_Array<T_idx_>::merge_sort(idx_t* const X, idx_t* const Y, const idx_
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::initialize()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::initialize()
 {
     const auto t_s = now();
 
@@ -172,8 +172,8 @@ void Suffix_Array<T_idx_>::initialize()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::permute()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::permute()
 {
     const auto t_s = now();
 
@@ -185,8 +185,8 @@ void Suffix_Array<T_idx_>::permute()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::sort_subarrays()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::sort_subarrays()
 {
     const auto t_s = now();
 
@@ -211,8 +211,8 @@ void Suffix_Array<T_idx_>::sort_subarrays()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::sort_subarrays_ext_mem()
 {
     const auto t_s = now();
 
@@ -277,8 +277,8 @@ void Suffix_Array<T_idx_>::sort_subarrays_ext_mem()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, const idx_t m, idx_t* const P)
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, const idx_t m, idx_t* const P)
 {
     assert(m <= n);
     const auto gap = n / m; // Distance-gap between pivots.
@@ -287,8 +287,8 @@ void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, co
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
 {
     const auto gap = n / (m + 1);   // Distance-gap between pivots.
     for(idx_t i = 0; i < m; ++i)
@@ -296,8 +296,8 @@ void Suffix_Array<T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::select_pivots()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::select_pivots()
 {
     const auto t_s = now();
 
@@ -309,8 +309,8 @@ void Suffix_Array<T_idx_>::select_pivots()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::collect_samples()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::collect_samples()
 {
     const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
 
@@ -320,8 +320,8 @@ void Suffix_Array<T_idx_>::collect_samples()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::collect_samples_ext_mem()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::collect_samples_ext_mem()
 {
     const auto subarr_sz = n_ / p_; // Size of each sorted subarray.
     for(idx_t i = 0; i < p_; ++i)
@@ -330,8 +330,8 @@ void Suffix_Array<T_idx_>::collect_samples_ext_mem()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::select_pivots_off_samples()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::select_pivots_off_samples()
 {
     const auto sample_count = p_ * sample_per_part_;    // Total number of samples to select pivots from.
     idx_t* const pivot_w = allocate<idx_t>(sample_count);   // Working space to sample pivots.
@@ -346,8 +346,8 @@ void Suffix_Array<T_idx_>::select_pivots_off_samples()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::locate_pivots(idx_t* const P) const
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::locate_pivots(idx_t* const P) const
 {
     const auto t_s = now();
 
@@ -373,8 +373,8 @@ void Suffix_Array<T_idx_>::locate_pivots(idx_t* const P) const
 }
 
 
-template <typename T_idx_>
-T_idx_ Suffix_Array<T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const char* const P, const idx_t P_len) const
+template <typename T_seq_, typename T_idx_>
+T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const T_seq_* const P, const idx_t P_len) const
 {
     // Invariant: SA[l] < P < SA[r].
 
@@ -421,8 +421,8 @@ T_idx_ Suffix_Array<T_idx_>::upper_bound(const idx_t* const X, const idx_t n, co
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::partition_sub_subarrays(const idx_t* const P)
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::partition_sub_subarrays(const idx_t* const P)
 {
     const auto t_s = now();
 
@@ -483,8 +483,8 @@ void Suffix_Array<T_idx_>::partition_sub_subarrays(const idx_t* const P)
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order)
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<idx_t>& route_order)
 {
     const auto w_id = parlay::worker_id();
     auto& buf = w_buf[w_id].unwrap();
@@ -513,8 +513,8 @@ void Suffix_Array<T_idx_>::distribute_sub_subarrays_ext_mem(const std::vector<id
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::merge_sub_subarrays()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays()
 {
     const auto t_s = now();
 
@@ -554,8 +554,8 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays_ext_mem()
 {
     const auto t_s = now();
 
@@ -624,8 +624,8 @@ void Suffix_Array<T_idx_>::merge_sub_subarrays_ext_mem()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const idx_t n, const idx_t* const S, idx_t* const LCP_x, idx_t* const LCP_y)
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const idx_t n, const idx_t* const S, idx_t* const LCP_x, idx_t* const LCP_y)
 {
     if(n == 1)
         return;
@@ -643,8 +643,8 @@ void Suffix_Array<T_idx_>::sort_partition(idx_t* const X, idx_t* const Y, const 
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::compute_partition_boundary_lcp()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::compute_partition_boundary_lcp()
 {
     const auto t_s = now();
 
@@ -662,8 +662,8 @@ void Suffix_Array<T_idx_>::compute_partition_boundary_lcp()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::clean_up()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::clean_up()
 {
     const auto t_s = now();
 
@@ -691,8 +691,8 @@ void Suffix_Array<T_idx_>::clean_up()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::construct()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::construct()
 {
     const auto t_start = now();
 
@@ -722,8 +722,8 @@ void Suffix_Array<T_idx_>::construct()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::construct_ext_mem()
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::construct_ext_mem()
 {
     const auto t_start = now();
 
@@ -743,8 +743,8 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 }
 
 
-template <typename T_idx_>
-const T_idx_* Suffix_Array<T_idx_>::SA()
+template <typename T_seq_, typename T_idx_>
+const T_idx_* Suffix_Array<T_seq_, T_idx_>::SA()
 {
     if(SA_ == nullptr)
     {
@@ -774,8 +774,8 @@ const T_idx_* Suffix_Array<T_idx_>::SA()
 }
 
 
-template <typename T_idx_>
-void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::dump(std::ofstream& output) const
 {
     const auto t_start = now();
 
@@ -815,9 +815,9 @@ void Suffix_Array<T_idx_>::dump(std::ofstream& output) const
 }
 
 
-template <typename T_idx_>
+template <typename T_seq_, typename T_idx_>
 template <typename T_arr_>
-void Suffix_Array<T_idx_>::prefix_sum(T_arr_* A, const T_idx_ n)
+void Suffix_Array<T_seq_, T_idx_>::prefix_sum(T_arr_* A, const T_idx_ n)
 {
     T_arr_ curr_sum = 0;
     for(idx_t i = 0; i < n; ++i)
@@ -832,13 +832,13 @@ void Suffix_Array<T_idx_>::prefix_sum(T_arr_* A, const T_idx_ n)
 }
 
 
-template <typename T_idx_>
-bool Suffix_Array<T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_t& lcp) const
+template <typename T_seq_, typename T_idx_>
+bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_t& lcp) const
 {
     assert(x < n_ && y < n_);
 
     const auto l = std::min(n_ - x, n_ - y);    // TODO: add context-bound.
-    lcp = this->lcp(T_ + x, T_ + y, l); // Using byte-by-byte variant for correctness-check.
+    lcp = this->lcp(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_); // Using byte-by-byte variant for correctness-check.
 
     if(lcp == l)    // Shorter suffix is a prefix of the longer one;
                     // possible in strings w/o designated delimiters, and in context-bounded SAs.
@@ -850,8 +850,8 @@ bool Suffix_Array<T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_t& lcp) 
 }
 
 
-template <typename T_idx_>
-bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const idx_t* const LCP_X) const
+template <typename T_seq_, typename T_idx_>
+bool Suffix_Array<T_seq_, T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const idx_t* const LCP_X) const
 {
     if(LCP_X && n > 0 && LCP_X[0] != 0)
         return false;
@@ -867,8 +867,8 @@ bool Suffix_Array<T_idx_>::is_sorted(const idx_t* const X, const idx_t n, const 
 }
 
 
-template <typename T_idx_>
-bool Suffix_Array<T_idx_>::is_correct()
+template <typename T_seq_, typename T_idx_>
+bool Suffix_Array<T_seq_, T_idx_>::is_correct()
 {
     std::vector<Padded<bool>> result(p_, true);    // Correctness result from each worker.
 
@@ -967,5 +967,7 @@ bool Suffix_Array<T_idx_>::is_correct()
 
 
 // Template instantiations for the required instances.
-template class CaPS_SA::Suffix_Array<uint32_t>;
-template class CaPS_SA::Suffix_Array<uint64_t>;
+template class CaPS_SA::Suffix_Array<char, uint32_t>;
+template class CaPS_SA::Suffix_Array<char, uint64_t>;
+template class CaPS_SA::Suffix_Array<uint32_t, uint32_t>;
+template class CaPS_SA::Suffix_Array<uint32_t, uint64_t>;
