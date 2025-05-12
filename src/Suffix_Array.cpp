@@ -78,6 +78,9 @@ void Suffix_Array<T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_t* Y, id
         {
             const idx_t max_n = n_ - std::max(X[i], Y[j]);  // Length of the shorter suffix.
             const idx_t context = std::min(max_context, max_n); // Prefix-context length for the suffixes.
+
+            assert((X[i] + m) + (context - m) <= n_ && (Y[j] + m) + (context - m) <= n_);
+
             const idx_t n = m + LCP(T_ + (X[i] + m), T_ + (Y[j] + m), context - m); // LCP(X_i, Y_j)
 
             // Whether the shorter suffix is a prefix of the longer one.
