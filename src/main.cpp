@@ -62,6 +62,7 @@ int main(int argc, char* argv[])
     const std::string ext_mem_path(argv[3]);
     const std::size_t subproblem_count(argc >= 5 ? std::atoi(argv[4]) : 0);
     const std::size_t max_context(argc >= 6 ? std::atoi(argv[5]) : 0);
+    const bool ext_mem = true;  // TODO: take input.
 
     typedef char T_seq_;
 
@@ -85,16 +86,14 @@ int main(int argc, char* argv[])
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.data(), text.size(), true, ext_mem_path, subproblem_count, max_context);
-        // suf_arr.construct();
-        suf_arr.construct_ext_mem();
+        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.data(), text.size(), true, ext_mem_path, subproblem_count, max_context);
-        // suf_arr.construct();
-        suf_arr.construct_ext_mem();
+        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
 
