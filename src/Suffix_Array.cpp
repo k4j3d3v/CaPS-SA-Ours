@@ -265,6 +265,7 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays_ext_mem()
     parlay::parallel_for(0, p_, sort_distribute_subarr, 1);
     std::cerr << "\n";
 
+    const auto t_b = now();
     parlay::parallel_for(0, p_,
     [&](const auto p_id)
     {
@@ -274,6 +275,7 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays_ext_mem()
 
     const auto t_e = now();
     std::cerr << "Sorted the subarrays independently and collated them into partitions. Time taken: " << duration(t_e - t_s) << " seconds.\n";
+    std::cerr << "Closing the buckets took: " << duration(t_e - t_b) << " seconds.\n";
 }
 
 
