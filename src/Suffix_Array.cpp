@@ -280,9 +280,7 @@ template <typename T_idx_>
 void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, const idx_t m, idx_t* const P)
 {
     assert(m <= n);
-    const auto gap = n / m; // Distance-gap between pivots.
-    for(idx_t i = 0; i < m; ++i)
-        P[i] = X[(i + 1) * gap - 1];
+    std::sample(X, X + n, P, m, std::mt19937(std::random_device()()));
 }
 
 
@@ -339,7 +337,9 @@ void Suffix_Array<T_idx_>::select_pivots_off_samples()
     std::memcpy(pivot_w, pivot_, sample_count * sizeof(idx_t));
     merge_sort(pivot_, pivot_w, sample_count, temp_1, temp_2);
 
-    sample_pivots(pivot_w, sample_count, p_ - 1, pivot_);
+    const auto gap = sample_count / (p_ - 1);   // Distance-gap between pivots.
+    for(idx_t i = 0; i < p_ - 1; ++i)
+        pivot_[i] = pivot_w[(i + 1) * gap - 1];
 
     deallocate(pivot_w), deallocate(temp_1), deallocate(temp_2);
 }
