@@ -691,6 +691,30 @@ void Suffix_Array<T_idx_>::clean_up()
 
 
 template <typename T_idx_>
+void Suffix_Array<T_idx_>::print_stats() const
+{
+    std::vector<uint64_t> p_sz(p_); // Partition sizes.
+    for(std::size_t p_id = 0; p_id < p_; ++p_id)
+        p_sz[p_id] = part_size_scan_[p_id + 1] - part_size_scan_[p_id];
+
+    std::cerr << "Bucket stats: " << "\n";
+
+    const auto sum =  std::accumulate(p_sz.cbegin(), p_sz.cend(), uint64_t(0));
+    const auto mean = static_cast<double>(sum) / p_;
+    double var = 0;
+    std::for_each(p_sz.cbegin(), p_sz.cend(), [&](const auto sz){ var += (sz - mean) * (sz - mean); });
+    var /= p_;
+    const auto sd = std::sqrt(var);
+
+    std::cerr << "\t Sum size:  " << sum << "\n";
+    std::cerr << "\t Max size:  " << *std::max_element(p_sz.cbegin(), p_sz.cend()) << "\n";
+    std::cerr << "\t Min size:  " << *std::min_element(p_sz.cbegin(), p_sz.cend()) << "\n";
+    std::cerr << "\t Mean size: " << mean << "\n";
+    std::cerr << "\t SD(size):  " << sd << "\n";
+}
+
+
+template <typename T_idx_>
 void Suffix_Array<T_idx_>::construct()
 {
     const auto t_start = now();
@@ -709,6 +733,8 @@ void Suffix_Array<T_idx_>::construct()
     locate_pivots(P);
     partition_sub_subarrays(P);
     deallocate(P);
+
+    print_stats();
 
     merge_sub_subarrays();
 
@@ -732,6 +758,8 @@ void Suffix_Array<T_idx_>::construct_ext_mem()
 
     sort_subarrays_ext_mem();
     // select_pivots_off_samples();
+
+    print_stats();
 
     merge_sub_subarrays_ext_mem();
 

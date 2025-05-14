@@ -173,6 +173,9 @@ private:
     // Cleans up after the construction algorithm.
     void clean_up();
 
+    // Prints some key statistics of the final partition sizes.
+    void print_stats() const;
+
     const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_SA_" + std::to_string(p_id); }
     const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
     const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }
