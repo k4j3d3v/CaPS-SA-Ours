@@ -199,6 +199,8 @@ void Suffix_Array<T_idx_>::sort_subarrays()
                         subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
                         LCP_ + i * subarr_size, LCP_w + i * subarr_size);
 
+            assert(is_sorted(SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_), LCP_ + i * subarr_size));
+
             if(++solved_ % 8 == 0)
                 std::cerr << "\rSorted " << solved_ << " subarrays.";
         };
@@ -280,6 +282,7 @@ template <typename T_idx_>
 void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, const idx_t m, idx_t* const P)
 {
     assert(m <= n);
+
     std::sample(X, X + n, P, m, std::mt19937(std::random_device()()));
 }
 
@@ -312,8 +315,12 @@ void Suffix_Array<T_idx_>::collect_samples()
     const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
 
     for(idx_t i = 0; i < p_; ++i)   // TODO: parallelize?
+    {
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
                         sample_per_part_, pivot_ + i * sample_per_part_);
+
+        assert(is_sorted(pivot_ + i * sample_per_part_, sample_per_part_));
+    }
 }
 
 
@@ -336,6 +343,7 @@ void Suffix_Array<T_idx_>::select_pivots_off_samples()
 
     std::memcpy(pivot_w, pivot_, sample_count * sizeof(idx_t));
     merge_sort(pivot_, pivot_w, sample_count, temp_1, temp_2);
+    assert(is_sorted(pivot_w, sample_count, temp_1));
 
     const auto gap = sample_count / (p_ - 1);   // Distance-gap between pivots.
     for(idx_t i = 0; i < p_ - 1; ++i)
