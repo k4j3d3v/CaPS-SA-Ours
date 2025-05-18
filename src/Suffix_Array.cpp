@@ -703,7 +703,9 @@ void Suffix_Array<T_idx_>::print_stats() const
 {
     std::vector<uint64_t> p_sz(p_); // Partition sizes.
     for(std::size_t p_id = 0; p_id < p_; ++p_id)
-        p_sz[p_id] = part_size_scan_[p_id + 1] - part_size_scan_[p_id];
+        p_sz[p_id] = !ext_mem_ctr_ ?
+                        part_size_scan_[p_id + 1] - part_size_scan_[p_id] :
+                        subproblem_space[p_id].unwrap().SA_bucket.size();
 
     std::cerr << "Bucket stats: " << "\n";
 
