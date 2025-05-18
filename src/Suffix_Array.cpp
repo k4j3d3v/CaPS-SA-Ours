@@ -346,9 +346,20 @@ void Suffix_Array<T_idx_>::select_pivots_off_samples()
     merge_sort(pivot_, pivot_w, sample_count, temp_1, temp_2);
     assert(is_sorted(pivot_w, sample_count, temp_1));
 
-    const auto gap = sample_count / (p_ - 1);   // Distance-gap between pivots.
+    const auto gap = sample_count / (p_);   // Distance-gap between pivots.
+    const auto quant_err = sample_count % p_;   // Numerator of the quantization error per partition.
+    idx_t unaccounted = 0;  // Running total number of samples not properly accounted for due to quantization of partition sizes.
+    std::size_t idx = 0;    // Index of the next pivot to choose from the samples.
     for(idx_t i = 0; i < p_ - 1; ++i)
-        pivot_[i] = pivot_w[(i + 1) * gap - 1];
+    {
+        idx += gap;
+        unaccounted += quant_err;
+        if(unaccounted >= p_)   // Fix the cumulative error.
+            idx++,
+            unaccounted %= p_;
+
+        pivot_[i] = pivot_w[idx - 1];
+    }
 
     deallocate(pivot_w), deallocate(temp_1), deallocate(temp_2);
 }
