@@ -288,15 +288,6 @@ void Suffix_Array<T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, co
 
 
 template <typename T_idx_>
-void Suffix_Array<T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
-{
-    const auto gap = n / (m + 1);   // Distance-gap between pivots.
-    for(idx_t i = 0; i < m; ++i)
-        P[i] = r_beg + (i + 1) * gap - 1;
-}
-
-
-template <typename T_idx_>
 void Suffix_Array<T_idx_>::select_pivots()
 {
     const auto t_s = now();
@@ -316,8 +307,9 @@ void Suffix_Array<T_idx_>::collect_samples()
 
     for(idx_t i = 0; i < p_; ++i)   // TODO: parallelize?
     {
+        const auto samples = pivot_ + i * sample_per_part_;
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
-                        sample_per_part_, pivot_ + i * sample_per_part_);
+                        sample_per_part_, samples);
 
         assert(is_sorted(pivot_ + i * sample_per_part_, sample_per_part_));
     }
@@ -328,9 +320,18 @@ template <typename T_idx_>
 void Suffix_Array<T_idx_>::collect_samples_ext_mem()
 {
     const auto subarr_sz = n_ / p_; // Size of each sorted subarray.
+    std::vector<idx_t> candidates_off(subarr_sz + n_ % p_);
+    std::iota(candidates_off.begin(), candidates_off.end(), idx_t(0));
+
     for(idx_t i = 0; i < p_; ++i)
-        sample_pivots(  i * subarr_sz, subarr_sz + (i < p_ - 1? 0 : n_ % p_),
-                        sample_per_part_, pivot_ + i * sample_per_part_);
+    {
+        const auto samples = pivot_ + i * sample_per_part_;
+        sample_pivots(  candidates_off.data(), subarr_sz + (i < p_ - 1? 0 : n_ % p_),
+                        sample_per_part_, samples);
+
+        const auto samples_off = i * subarr_sz;
+        std::for_each(pivot_ + i * sample_per_part_, pivot_ + (i + 1) * sample_per_part_, [&](auto& s){ s += samples_off; });
+    }
 }
 
 
