@@ -199,6 +199,8 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays()
                         subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
                         LCP_ + i * subarr_size, LCP_w + i * subarr_size);
 
+            assert(is_sorted(SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_), LCP_ + i * subarr_size));
+
             if(++solved_ % 8 == 0)
                 std::cerr << "\rSorted " << solved_ << " subarrays.";
         };
@@ -283,18 +285,8 @@ template <typename T_seq_, typename T_idx_>
 void Suffix_Array<T_seq_, T_idx_>::sample_pivots(const idx_t* const X, const idx_t n, const idx_t m, idx_t* const P)
 {
     assert(m <= n);
-    const auto gap = n / m; // Distance-gap between pivots.
-    for(idx_t i = 0; i < m; ++i)
-        P[i] = X[(i + 1) * gap - 1];
-}
 
-
-template <typename T_seq_, typename T_idx_>
-void Suffix_Array<T_seq_, T_idx_>::sample_pivots(const idx_t r_beg, const idx_t n, const idx_t m, idx_t* const P)
-{
-    const auto gap = n / (m + 1);   // Distance-gap between pivots.
-    for(idx_t i = 0; i < m; ++i)
-        P[i] = r_beg + (i + 1) * gap - 1;
+    std::sample(X, X + n, P, m, std::mt19937(std::random_device()()));
 }
 
 
@@ -317,8 +309,13 @@ void Suffix_Array<T_seq_, T_idx_>::collect_samples()
     const auto subarr_size = n_ / p_;   // Size of each sorted subarray.
 
     for(idx_t i = 0; i < p_; ++i)   // TODO: parallelize?
+    {
+        const auto samples = pivot_ + i * sample_per_part_;
         sample_pivots(  SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_),
-                        sample_per_part_, pivot_ + i * sample_per_part_);
+                        sample_per_part_, samples);
+
+        assert(is_sorted(pivot_ + i * sample_per_part_, sample_per_part_));
+    }
 }
 
 
@@ -326,9 +323,18 @@ template <typename T_seq_, typename T_idx_>
 void Suffix_Array<T_seq_, T_idx_>::collect_samples_ext_mem()
 {
     const auto subarr_sz = n_ / p_; // Size of each sorted subarray.
+    std::vector<idx_t> candidates_off(subarr_sz + n_ % p_);
+    std::iota(candidates_off.begin(), candidates_off.end(), idx_t(0));
+
     for(idx_t i = 0; i < p_; ++i)
-        sample_pivots(  i * subarr_sz, subarr_sz + (i < p_ - 1? 0 : n_ % p_),
-                        sample_per_part_, pivot_ + i * sample_per_part_);
+    {
+        const auto samples = pivot_ + i * sample_per_part_;
+        sample_pivots(  candidates_off.data(), subarr_sz + (i < p_ - 1? 0 : n_ % p_),
+                        sample_per_part_, samples);
+
+        const auto samples_off = i * subarr_sz;
+        std::for_each(pivot_ + i * sample_per_part_, pivot_ + (i + 1) * sample_per_part_, [&](auto& s){ s += samples_off; });
+    }
 }
 
 
@@ -341,8 +347,22 @@ void Suffix_Array<T_seq_, T_idx_>::select_pivots_off_samples()
 
     std::memcpy(pivot_w, pivot_, sample_count * sizeof(idx_t));
     merge_sort(pivot_, pivot_w, sample_count, temp_1, temp_2);
+    assert(is_sorted(pivot_w, sample_count, temp_1));
 
-    sample_pivots(pivot_w, sample_count, p_ - 1, pivot_);
+    const auto gap = sample_count / (p_);   // Distance-gap between pivots.
+    const auto quant_err = sample_count % p_;   // Numerator of the quantization error per partition.
+    idx_t unaccounted = 0;  // Running total number of samples not properly accounted for due to quantization of partition sizes.
+    std::size_t idx = 0;    // Index of the next pivot to choose from the samples.
+    for(idx_t i = 0; i < p_ - 1; ++i)
+    {
+        idx += gap;
+        unaccounted += quant_err;
+        if(unaccounted >= p_)   // Fix the cumulative error.
+            idx++,
+            unaccounted %= p_;
+
+        pivot_[i] = pivot_w[idx - 1];
+    }
 
     deallocate(pivot_w), deallocate(temp_1), deallocate(temp_2);
 }
@@ -694,6 +714,32 @@ void Suffix_Array<T_seq_, T_idx_>::clean_up()
 
 
 template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::print_stats() const
+{
+    std::vector<uint64_t> p_sz(p_); // Partition sizes.
+    for(std::size_t p_id = 0; p_id < p_; ++p_id)
+        p_sz[p_id] = !ext_mem_ctr_ ?
+                        part_size_scan_[p_id + 1] - part_size_scan_[p_id] :
+                        subproblem_space[p_id].unwrap().SA_bucket.size();
+
+    std::cerr << "Bucket stats: " << "\n";
+
+    const auto sum =  std::accumulate(p_sz.cbegin(), p_sz.cend(), uint64_t(0));
+    const auto mean = static_cast<double>(sum) / p_;
+    double var = 0;
+    std::for_each(p_sz.cbegin(), p_sz.cend(), [&](const auto sz){ var += (sz - mean) * (sz - mean); });
+    var /= p_;
+    const auto sd = std::sqrt(var);
+
+    std::cerr << "\t Sum size:  " << sum << "\n";
+    std::cerr << "\t Max size:  " << *std::max_element(p_sz.cbegin(), p_sz.cend()) << "\n";
+    std::cerr << "\t Min size:  " << *std::min_element(p_sz.cbegin(), p_sz.cend()) << "\n";
+    std::cerr << "\t Mean size: " << mean << "\n";
+    std::cerr << "\t SD(size):  " << sd << "\n";
+}
+
+
+template <typename T_seq_, typename T_idx_>
 void Suffix_Array<T_seq_, T_idx_>::construct()
 {
     const auto t_start = now();
@@ -712,6 +758,8 @@ void Suffix_Array<T_seq_, T_idx_>::construct()
     locate_pivots(P);
     partition_sub_subarrays(P);
     deallocate(P);
+
+    print_stats();
 
     merge_sub_subarrays();
 
@@ -735,6 +783,8 @@ void Suffix_Array<T_seq_, T_idx_>::construct_ext_mem()
 
     sort_subarrays_ext_mem();
     // select_pivots_off_samples();
+
+    print_stats();
 
     merge_sub_subarrays_ext_mem();
 

@@ -118,10 +118,6 @@ private:
     // into `P`.
     static void sample_pivots(const idx_t* X, idx_t n, idx_t m, idx_t* P);
 
-    // Samples `m` pivots from the suffix collection range `[r_beg, r_beg + n)`
-    // into `P`.
-    static void sample_pivots(const idx_t r_beg, idx_t n, idx_t m, idx_t* P);
-
     // Selects pivots for parallel merging of the sorted subarrays.
     void select_pivots();
 
@@ -177,6 +173,9 @@ private:
 
     // Cleans up after the construction algorithm.
     void clean_up();
+
+    // Prints some key statistics of the final partition sizes.
+    void print_stats() const;
 
     const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_SA_" + std::to_string(p_id); }
     const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
