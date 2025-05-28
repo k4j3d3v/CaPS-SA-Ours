@@ -4,6 +4,7 @@
 # Core source files.
 set(PROJECT_SRC
         Suffix_Array.cpp
+        Genomic_Text.cpp
 )
 
 
