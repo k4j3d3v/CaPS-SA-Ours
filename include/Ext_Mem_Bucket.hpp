@@ -64,10 +64,6 @@ public:
     // Adds `sz` elements from `src` to the bucket.
     void add(const T_* src, std::size_t sz);
 
-    // Dumps `sz` elements from `buf` directly into the external-memory. The
-    // current in-memory elements of the bucket are bypassed.
-    void dump(const T_* buf, std::size_t sz);
-
     // Closes the bucket. Elements should not be added anymore once this has
     // been invoked. This method is required only if the entirety of the bucket
     // needs to live in external-memory after the parent process finishes.
@@ -115,14 +111,6 @@ inline void Ext_Mem_Bucket<T_>::add(const T_* const src, const std::size_t sz)
     buf.insert(buf.end(), src, src + sz);
     if(buf.size() >= max_write_buf_elems)
         flush();
-}
-
-
-template <typename T_>
-inline void Ext_Mem_Bucket<T_>::dump(const T_* const buf, const std::size_t sz)
-{
-    size_ += sz;
-    file.write(reinterpret_cast<const char*>(buf), sz * sizeof(T_));
 }
 
 
