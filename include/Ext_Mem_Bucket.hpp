@@ -9,9 +9,11 @@
 #include <string>
 #include <cstring>
 #include <iostream>
-#include <fstream>
-#include <filesystem>
+#include <cstdio>
+#include <fcntl.h>
+#include <unistd.h>
 #include <cstdlib>
+#include <algorithm>
 #include <cassert>
 
 
@@ -25,7 +27,7 @@ class Ext_Mem_Bucket
 {
 private:
 
-    static constexpr std::size_t in_memory_bytes = 16lu * 1024; // 16KB.
+    static constexpr std::size_t in_memory_bytes = 32lu * 1024; // 32KB.
 
     const std::string file_path;    // Path to the file storing the bucket.
     const std::size_t max_write_buf_bytes;  // Maximum size of the in-memory write-buffer in bytes.
@@ -34,20 +36,21 @@ private:
     std::vector<T_> buf;    // In-memory buffer of the bucket-elements.
     std::size_t size_;  // Number of elements added to the bucket.
 
-    std::ofstream file; // The bucket-file.
+    const int fd;   // The bucket-file's descriptor.
 
 
     // Flushes the in-memory buffer content to external memory.
     void flush();
 
+    // Checks the return code `code` of a file operation and reports pertinent
+    // error(s) if any (also exits in that case). Otherwise returns `code`.
+    int checked_file_op(const int code, const char* const op) const;
 
 public:
 
     // Constructs an external-memory bucket at path `file_path`. An optional in-
     // memory buffer size (in bytes) `buf_sz` for the bucket can be specified.
-    // Specifying `append` indicates that the bucket exists and new elements are
-    // to be appended to it.
-    Ext_Mem_Bucket(const std::string& file_path, bool append = false, const std::size_t buf_sz = in_memory_bytes);
+    Ext_Mem_Bucket(const std::string& file_path, const std::size_t buf_sz = in_memory_bytes);
 
     // Move-constructs the bucket.
     Ext_Mem_Bucket(Ext_Mem_Bucket&& other) = default;
@@ -67,10 +70,6 @@ public:
     // Adds `sz` elements from `src` to the bucket.
     void add(const T_* src, std::size_t sz);
 
-    // Dumps `sz` elements from `buf` directly into the external-memory. The
-    // current in-memory elements of the bucket are bypassed.
-    void dump(const T_* buf, std::size_t sz);
-
     // Closes the bucket. Elements should not be added anymore once this has
     // been invoked. This method is required only if the entirety of the bucket
     // needs to live in external-memory after the parent process finishes.
@@ -88,33 +87,16 @@ public:
 
 
 template <typename T_>
-inline Ext_Mem_Bucket<T_>::Ext_Mem_Bucket(const std::string& file_path, const bool append, const std::size_t buf_sz):
+inline Ext_Mem_Bucket<T_>::Ext_Mem_Bucket(const std::string& file_path, const std::size_t buf_sz):
       file_path(file_path)
     , max_write_buf_bytes(buf_sz)
     , max_write_buf_elems(buf_sz / sizeof(T_))
     , size_(0)
+    , fd(checked_file_op(::open(file_path.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU), "opening"))
 {
+    assert(!file_path.empty());
+
     buf.reserve(max_write_buf_elems);
-
-    if(append)
-    {
-        assert(!file_path.empty());
-
-        std::error_code ec;
-        const auto file_sz = std::filesystem::file_size(file_path, ec);
-        if(ec)
-        {
-            std::cerr << "Error reading of external-memory bucket at " << file_path << ". Aborting.\n";
-            std::exit(EXIT_FAILURE);
-        }
-
-        assert(file_sz % sizeof(T_) == 0);
-        size_ = file_sz / sizeof(T_);
-
-        file.open(file_path, std::ios::app | std::ios::binary);
-    }
-    else if(!file_path.empty())
-        file.open(file_path, std::ios::out | std::ios::binary);
 }
 
 
@@ -139,17 +121,11 @@ inline void Ext_Mem_Bucket<T_>::add(const T_* const src, const std::size_t sz)
 
 
 template <typename T_>
-inline void Ext_Mem_Bucket<T_>::dump(const T_* const buf, const std::size_t sz)
-{
-    size_ += sz;
-    file.write(reinterpret_cast<const char*>(buf), sz * sizeof(T_));
-}
-
-
-template <typename T_>
 inline void Ext_Mem_Bucket<T_>::flush()
 {
-    file.write(reinterpret_cast<const char*>(buf.data()), buf.size() * sizeof(T_));
+    const auto r = checked_file_op(::write(fd, static_cast<const void*>(buf.data()), buf.size() * sizeof(T_)), " writing ");
+    assert(static_cast<std::size_t>(r) == buf.size() * sizeof(T_)); (void)r;
+
     buf.clear();
 }
 
@@ -160,25 +136,31 @@ inline void Ext_Mem_Bucket<T_>::close()
     if(!buf.empty())
         flush();
 
-    file.close();
+    checked_file_op(::close(fd), " closing ");
 }
 
 
 template <typename T_>
 inline std::size_t Ext_Mem_Bucket<T_>::load(T_* const dest) const
 {
-    std::ifstream input(file_path);
-    input.read(reinterpret_cast<char*>(dest), size_ * sizeof(T_));
-    input.close();
+    const auto f = checked_file_op(::open(file_path.c_str(), O_RDONLY), " opening ");
 
-    if(!input)
+    const auto to_read = size_ * sizeof(T_);
+    const std::size_t max_read = 0x7ffff000;    // https://man7.org/linux/man-pages/man2/read.2.html#NOTES
+    std::size_t read_bytes = 0;
+
+    while(read_bytes < to_read)
     {
-        std::cerr << "Error reading of external-memory bucket at " << file_path << ". Aborting.\n";
-        std::exit(EXIT_FAILURE);
+        const auto bytes = std::min(max_read, to_read - read_bytes);
+        const auto r = checked_file_op(::read(f, reinterpret_cast<char*>(dest) + read_bytes, bytes), "reading");
+        assert(static_cast<std::size_t>(r) == bytes); (void)r;
+
+        read_bytes += r;
     }
 
-    assert(input.gcount() % sizeof(T_) == 0);
-    return input.gcount() / sizeof(T_);
+    checked_file_op(::close(f), "closing");
+
+    return size_;
 }
 
 
@@ -187,12 +169,22 @@ inline void Ext_Mem_Bucket<T_>::rewrite(const T_* const src, const std::size_t s
 {
     buf.clear();
 
-    if(!file.is_open())
-        file.open(file_path, std::ios::out | std::ios::binary);
+    const auto f = checked_file_op(::open(file_path.c_str(), O_WRONLY | O_TRUNC), "opening");
 
-    file.clear();
-    file.seekp(std::ios_base::beg);
-    file.write(reinterpret_cast<const char*>(src), sz * sizeof(T_));
+    const auto to_write = sz * sizeof(T_);
+    const std::size_t max_write = 0x7ffff000;    // https://man7.org/linux/man-pages/man2/write.2.html#NOTES
+    std::size_t wrote_bytes = 0;
+
+    while(wrote_bytes < to_write)
+    {
+        const auto bytes = std::min(max_write, to_write - wrote_bytes);
+        const auto w = checked_file_op(::write(f, reinterpret_cast<const char*>(src) + wrote_bytes, bytes), "writing");
+        assert(static_cast<std::size_t>(w) == bytes); (void)w;
+
+        wrote_bytes += w;
+    }
+
+    checked_file_op(::close(f), "closing");
 
     size_ = sz;
 }
@@ -201,11 +193,21 @@ inline void Ext_Mem_Bucket<T_>::rewrite(const T_* const src, const std::size_t s
 template <typename T_>
 inline void Ext_Mem_Bucket<T_>::remove()
 {
-    if(std::remove(file_path.c_str()))
+    checked_file_op(::unlink(file_path.c_str()), "removing");
+}
+
+
+template <typename T_>
+inline int Ext_Mem_Bucket<T_>::checked_file_op(const int code, const char* const op) const
+{
+    if(code == -1)
     {
-        std::cerr << "Error removing external-memory file " << file_path << ". Aborting.\n";
+        std::cerr << "Error " << op << " external-memory bucket at " << file_path << ". Aborting.\n";
+        perror("Error");
         std::exit(EXIT_FAILURE);
     }
+
+    return code;
 }
 
 }

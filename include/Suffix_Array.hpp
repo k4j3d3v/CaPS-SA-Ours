@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <cstdlib>
@@ -177,9 +178,8 @@ private:
     // Prints some key statistics of the final partition sizes.
     void print_stats() const;
 
-    const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_SA_" + std::to_string(p_id); }
-    const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_LCP_" + std::to_string(p_id); }
-    const std::string sz_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "_sz_" + std::to_string(p_id); }
+    const std::string SA_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "SA_" + std::to_string(p_id); }
+    const std::string LCP_bucket_file_path(const idx_t p_id) const { return ext_mem_path + "LCP_" + std::to_string(p_id); }
 
     // Computes in-place prefix-sum in the array `A` for the first `n` elements.
     // `A` must have size at least `n + 1`—one extra entry is required to hold
@@ -277,16 +277,17 @@ struct Suffix_Array<T_seq_, T_idx_>::Worker_Mem
 template <typename T_seq_, typename T_idx_>
 struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 {
-    Ext_Mem_Bucket<idx_t> SA_bucket;    // External-memory buckets for the SA elements.
-    Ext_Mem_Bucket<idx_t> LCP_bucket;   // External-memory buckets for the LCP-array elements.
-    Ext_Mem_Bucket<idx_t> sz_bucket;    // External-memory buckets for the sizes of the sorted sub-subarrays.
+    Ext_Mem_Bucket<idx_t> SA_bucket;    // External-memory bucket for the SA elements.
+    Ext_Mem_Bucket<idx_t> LCP_bucket;   // External-memory bucket for the LCP-array elements.
+    std::vector<idx_t> sz_bucket;   // Bucket for the sizes of the sorted sub-subarrays.
 
 
     Subproblem_Ext_Mem(const Suffix_Array& SA, const std::size_t p_id):
           SA_bucket(SA.SA_bucket_file_path(p_id))
         , LCP_bucket(SA.LCP_bucket_file_path(p_id))
-        , sz_bucket(SA.sz_bucket_file_path(p_id))
-    {}
+    {
+        sz_bucket.reserve(SA.p_);
+    }
 
     Subproblem_Ext_Mem(Subproblem_Ext_Mem&&) = default;
 
@@ -294,19 +295,13 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
     Subproblem_Ext_Mem& operator=(const Subproblem_Ext_Mem&) = delete;
     Subproblem_Ext_Mem&& operator=(Subproblem_Ext_Mem&&) = delete;
 
-    void close()
-    {
-        SA_bucket.close(),
-        LCP_bucket.close(),
-        sz_bucket.close();
-    }
+    void add(const idx_t* const SA, const idx_t* const LCP, const idx_t sz) { SA_bucket.add(SA, sz), LCP_bucket.add(LCP, sz), sz_bucket.push_back(sz); }
 
-    void remove()
-    {
-        SA_bucket.remove(),
-        LCP_bucket.remove(),
-        sz_bucket.remove();
-    }
+    void load(idx_t* const SA, idx_t* const LCP, idx_t* const sz) const { SA_bucket.load(SA), LCP_bucket.load(LCP), std::memcpy(sz, sz_bucket.data(), sz_bucket.size() * sizeof(idx_t)); }
+
+    void close() { SA_bucket.close(), LCP_bucket.close(); }
+
+    void remove() { SA_bucket.remove(), LCP_bucket.remove(), sz_bucket.clear(); }
 };
 
 
