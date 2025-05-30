@@ -625,12 +625,8 @@ void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays_ext_mem()
             assert(is_sorted(SA.data(), part_sz, LCP.data()));
 
             SA_b.rewrite(SA.data(), part_sz);
-            SA_b.close();
             if(op_lcp)  // TODO: output a json file and note this.
-            {
                 LCP_b.rewrite(LCP.data(), part_sz); // TODO: note that `LCP[0] = 0`, which needs to be updated when concatenating the partitions afterwards.
-                LCP_b.close();
-            }
 
             if(++solved_ % 8 == 0)
                 std::cerr << "\rMerged " << solved_ << " partitions.";
