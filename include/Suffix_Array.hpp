@@ -294,19 +294,13 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
     Subproblem_Ext_Mem& operator=(const Subproblem_Ext_Mem&) = delete;
     Subproblem_Ext_Mem&& operator=(Subproblem_Ext_Mem&&) = delete;
 
-    void close()
-    {
-        SA_bucket.close(),
-        LCP_bucket.close(),
-        sz_bucket.close();
-    }
+    void add(const idx_t* const SA, const idx_t* const LCP, const idx_t sz) { SA_bucket.add(SA, sz), LCP_bucket.add(LCP, sz), sz_bucket.add(sz); }
 
-    void remove()
-    {
-        SA_bucket.remove(),
-        LCP_bucket.remove(),
-        sz_bucket.remove();
-    }
+    void load(idx_t* const SA, idx_t* const LCP, idx_t* const sz) const { SA_bucket.load(SA), LCP_bucket.load(LCP), sz_bucket.load(sz); }
+
+    void close() { SA_bucket.close(), LCP_bucket.close(), sz_bucket.close(); }
+
+    void remove() { SA_bucket.remove(), LCP_bucket.remove(), sz_bucket.remove(); }
 };
 
 

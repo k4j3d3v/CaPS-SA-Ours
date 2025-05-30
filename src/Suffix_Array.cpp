@@ -527,10 +527,7 @@ void Suffix_Array<T_seq_, T_idx_>::distribute_sub_subarrays_ext_mem(const std::v
         lock[part_id].unwrap().lock();
 
         auto& b = subproblem_space[part_id].unwrap();
-        auto &SA_b = b.SA_bucket, &LCP_b = b.LCP_bucket, &sz_b = b.sz_bucket;
-        SA_b.add(SA + P[part_id], sub_subarr_sz);
-        LCP_b.add(LCP + P[part_id], sub_subarr_sz);
-        sz_b.add(sub_subarr_sz);
+        b.add(SA + P[part_id], LCP + P[part_id], sub_subarr_sz);
 
         lock[part_id].unwrap().unlock();
     }
@@ -594,9 +591,7 @@ void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays_ext_mem()
             auto sub_subarr_idx = sub_subarr_idx_buf[w_id].unwrap();
 
             auto& b = subproblem_space[p_id].unwrap();
-            auto &SA_b = b.SA_bucket, &LCP_b = b.LCP_bucket, &sz_b = b.sz_bucket;
-            assert(SA_b.size() == LCP_b.size());
-            assert(sz_b.size() == p_);
+            auto &SA_b = b.SA_bucket, &LCP_b = b.LCP_bucket;
 
             const idx_t part_sz = SA_b.size();
             buf.reserve_uninit(part_sz);
@@ -604,15 +599,11 @@ void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays_ext_mem()
             auto &SA = buf.SA_buf, &LCP = buf.LCP_buf, &SA_w = buf.SA_w_buf, &LCP_w = buf.LCP_w_buf;
 
             // Load buckets and fulfill `sort_partition`'s precondition.
-
-            SA_b.load(SA.data());
+            b.load(SA.data(), LCP.data(), sub_subarr_idx + 1);
             std::memcpy(SA_w.data(), SA.data(), part_sz * sizeof(idx_t));
-
-            LCP_b.load(LCP.data());
             std::memcpy(LCP_w.data(), LCP.data(), part_sz * sizeof(idx_t));
 
             sub_subarr_idx[0] = 0;
-            sz_b.load(sub_subarr_idx + 1);
             for(idx_t i = 1; i <= p_; ++i)  // Convert sub-subarray sizes to sub-subarray indices.
                 sub_subarr_idx[i] += sub_subarr_idx[i - 1];
 
