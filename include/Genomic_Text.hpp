@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <vector>
 #include <cassert>
+#include <immintrin.h>
 
 
 namespace CaPS_SA
@@ -40,6 +41,10 @@ public:
 
     // Returns the code of the nucleobase at index `idx` of the original text.
     uint8_t base_at(std::size_t idx) const;
+
+    // Returns the LCP-length of the suffixes at indices `x` and `y`, with
+    // context-length `ctx`.
+    std::size_t LCP(std::size_t x, std::size_t y, std::size_t ctx) const;
 };
 
 
@@ -73,6 +78,44 @@ inline __m256i Genomic_Text::load(const std::size_t i) const
     const auto restored = _mm256_or_si256(cleared, lost_bits);  // Restored lost trailing bits from words 1, 2, and 3.
 
     return restored;
+}
+
+
+inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, const std::size_t ctx) const
+{
+    assert(x + ctx <= n_ && y + ctx <= n_);
+
+    constexpr std::size_t blk_sz = 124; // Size of nucleobase blocks loaded.
+
+    std::size_t i = x, j = y;
+    std::size_t lcp = 0;
+    for(std::size_t k = 0; k + blk_sz <= ctx; k += blk_sz)
+    {
+        const auto X = load(i);
+        const auto Y = load(j);
+
+        const auto eq_mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(X, Y));
+        const auto neq_mask = ~eq_mask & 0x7FFF'FFFF;   // Top byte is degenerate in a block.
+        if(neq_mask)
+        {
+            auto const X_b = reinterpret_cast<const unsigned char*>(&X);
+            auto const Y_b = reinterpret_cast<const unsigned char*>(&Y);
+            const auto bytes_eq = __builtin_ctz(neq_mask);
+            assert(X_b[bytes_eq] != Y_b[bytes_eq]);
+
+            const auto bits_eq = (bytes_eq << 3) + (__builtin_ctz(X_b[bytes_eq] ^ Y_b[bytes_eq]));
+            lcp += (bits_eq >> 1);
+
+            return lcp;
+        }
+
+        i += blk_sz, j += blk_sz, lcp += blk_sz;
+    }
+
+    while(lcp < ctx && base_at(x + lcp) == base_at(y + lcp))
+        lcp++;
+
+    return lcp;
 }
 
 }
