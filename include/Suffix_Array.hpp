@@ -318,7 +318,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
 {
     idx_t lcp = 0;
 
-    if constexpr(N == 1)
+    if constexpr(N == 0)
     {
         for(; lcp < ctx; ++lcp)
             if(x[lcp] != y[lcp])
