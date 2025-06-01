@@ -28,6 +28,14 @@ class Genomic_Text
     // the highest byte.
     __m256i load(std::size_t i) const;
 
+    // Returns the LCP length of the `124 x N`-nucleobases prefix of the
+    // suffixes `x` and `y`.
+    template <std::size_t N> std::size_t LCP_unrolled(std::size_t x, std::size_t y) const;
+
+    // Returns the LCP length of the suffixes `x` and `y`, with context-length
+    // `ctx`. `N x 124` nucleobases of prefix comparisons are loop-unrolled.
+    template <std::size_t N> std::size_t LCP(std::size_t x, std::size_t y, std::size_t ctx) const;
+
 public:
 
     // Constructs a 2-bit-packed representation of the genomic text `T` of
@@ -81,18 +89,15 @@ inline __m256i Genomic_Text::load(const std::size_t i) const
 }
 
 
-inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, const std::size_t ctx) const
+template <std::size_t N>
+inline std::size_t Genomic_Text::LCP_unrolled(const std::size_t x, const std::size_t y) const
 {
-    assert(x + ctx <= n_ && y + ctx <= n_);
-
-    constexpr std::size_t blk_sz = 124; // Size of nucleobase blocks loaded.
-
-    std::size_t i = x, j = y;
-    std::size_t lcp = 0;
-    for(std::size_t k = 0; k + blk_sz <= ctx; k += blk_sz)
+    if constexpr(N == 0)
+        return 0;
+    else
     {
-        const auto X = load(i);
-        const auto Y = load(j);
+        const auto X = load(x);
+        const auto Y = load(y);
 
         const auto eq_mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(X, Y));
         const auto neq_mask = ~eq_mask & 0x7FFF'FFFF;   // Top byte is degenerate in a block.
@@ -104,18 +109,47 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
             assert(X_b[bytes_eq] != Y_b[bytes_eq]);
 
             const auto bits_eq = (bytes_eq << 3) + (__builtin_ctz(X_b[bytes_eq] ^ Y_b[bytes_eq]));
-            lcp += (bits_eq >> 1);
-
-            return lcp;
+            return bits_eq >> 1;
         }
 
-        i += blk_sz, j += blk_sz, lcp += blk_sz;
+        return 124 + LCP_unrolled<N - 1>(x + 124, y + 124);
     }
+}
 
-    while(lcp < ctx && base_at(x + lcp) == base_at(y + lcp))
-        lcp++;
 
-    return lcp;
+template <std::size_t N>
+inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, const std::size_t ctx) const
+{
+    std::size_t lcp = 0;
+
+    if constexpr(N == 0)
+    {
+        for(; lcp < ctx; ++lcp)
+            if(base_at(x + lcp) != base_at(y + lcp))
+                break;
+
+        return lcp;
+    }
+    else
+    {
+        while((ctx - lcp) >= N * 124)
+        {
+            const auto l = LCP_unrolled<N>(x + lcp, y + lcp);
+            lcp += l;
+            if(l < N * 124)
+                return lcp;
+        }
+
+        return lcp + LCP<0>(x + lcp, y + lcp, ctx - lcp);
+    }
+}
+
+
+inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, const std::size_t ctx) const
+{
+    assert(x + ctx <= n_ && y + ctx <= n_);
+
+    return LCP<1>(x, y, ctx);
 }
 
 }
