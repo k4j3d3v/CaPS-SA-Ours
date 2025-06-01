@@ -75,19 +75,15 @@ private:
     static constexpr idx_t nested_par_grain_size = (1lu << 13); // Granularity for nested parallelism to kick in.
 
 
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`.
-    static idx_t lcp(const char* x, const char* y, idx_t min_len);
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    static idx_t lcp(const char* x, const char* y, idx_t ctx);
 
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`. `N x 32` bytes of prefix comparisons are
-    // loop-unrolled.
-    template <std::size_t N>
-    static idx_t LCP(const char* x, const char* y, idx_t min_len);
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    // `N x 32` bytes of prefix comparisons are loop-unrolled.
+    template <std::size_t N> static idx_t LCP(const char* x, const char* y, idx_t ctx);
 
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`.
-    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t min_len);
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
 
     // Returns the LCP length of the `32 x N`-bytes prefix of `x` and `y`.
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
@@ -306,10 +302,10 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 
 
 template <typename T_seq_, typename T_idx_>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char* const y, const idx_t ctx)
 {
     idx_t l = 0;
-    while(l < min_len && x[l] == y[l])
+    while(l < ctx && x[l] == y[l])
         l++;
 
     return l;
@@ -318,13 +314,13 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char*
 
 template <typename T_seq_, typename T_idx_>
 template <std::size_t N>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char* const y, const idx_t ctx)
 {
     idx_t lcp = 0;
 
     if constexpr(N == 1)
     {
-        for(; lcp < min_len; ++lcp)
+        for(; lcp < ctx; ++lcp)
             if(x[lcp] != y[lcp])
                 break;
 
@@ -332,7 +328,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
     }
     else
     {
-        while((min_len - lcp) >= N * 32)
+        while((ctx - lcp) >= N * 32)
         {
             const auto l = LCP_unrolled<N>(x + lcp, y + lcp);
             lcp += l;
@@ -340,7 +336,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
                 return lcp;
         }
 
-        return lcp + LCP<N - 1>(x + lcp, y + lcp, min_len - lcp);
+        return lcp + LCP<N - 1>(x + lcp, y + lcp, ctx - lcp);
     }
 }
 
@@ -366,9 +362,9 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
 
 
 template <typename T_seq_, typename T_idx_>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t ctx)
 {
-    return LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), min_len * sizeof(T_seq_)) / sizeof(T_seq_);
+    return LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)) / sizeof(T_seq_);
 }
 
 }
