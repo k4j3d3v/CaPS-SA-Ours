@@ -55,13 +55,13 @@ void LCP_bandwidth(const char* const T, const std::size_t n)
 
         const auto t_0 = CaPS_SA::now();
 
-        uint64_t lcp_sum = 0;
+        uint64_t bytes_scanned = 0;
         for(std::size_t i = 0; i < n; ++i)
             for(std::size_t j = i; j < n; ++j)
-                lcp_sum += SA.LCP(T + i, T + j, n - j);
+                bytes_scanned += (SA.LCP(T + i, T + j, n - j) + 1);
 
         const auto t_1 = CaPS_SA::now();
-        std::cerr << "LCP-bandwidth on raw text:    " << ((lcp_sum / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+        std::cerr << "LCP-bandwidth on raw text:    " << ((bytes_scanned / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
     }
 // */
 
@@ -71,13 +71,13 @@ void LCP_bandwidth(const char* const T, const std::size_t n)
 
         const auto t_0 = CaPS_SA::now();
 
-        uint64_t lcp_sum = 0;
+        uint64_t bases_scanned = 0;
         for(std::size_t i = 0; i < n; ++i)
             for(std::size_t j = i; j < n; ++j)
-                lcp_sum += G.LCP(i, j, n - j);
+                bases_scanned += (G.LCP(i, j, n - j) + 1);
 
         const auto t_1 = CaPS_SA::now();
-        std::cerr << "LCP-bandwidth on packed text: " << ((lcp_sum / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+        std::cerr << "LCP-bandwidth on packed text: " << (((bases_scanned / 4.0) / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
     }
 // */
 }
