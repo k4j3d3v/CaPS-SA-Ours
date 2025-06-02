@@ -1,5 +1,6 @@
 
 #include "Suffix_Array.hpp"
+#include "utility.hpp"
 
 #include <vector>
 #include <string>
@@ -7,28 +8,6 @@
 #include <limits>
 #include <fstream>
 #include <iostream>
-#include <filesystem>
-
-
-template <typename T_seq_>
-void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
-{
-    std::error_code ec;
-    const auto file_size = std::filesystem::file_size(ip_path, ec);
-
-    if(ec)
-    {
-        std::cerr << ip_path << " : " << ec.message() << "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    assert(file_size % sizeof(T_seq_) == 0);
-
-    text.resize(file_size / sizeof(T_seq_));
-    std::ifstream input(ip_path);
-    input.read(reinterpret_cast<char*>(text.data()), file_size);
-    input.close();
-}
 
 
 template <typename T_seq_, typename T_idx_>
@@ -67,7 +46,7 @@ int main(int argc, char* argv[])
     typedef char T_seq_;
 
     std::vector<T_seq_> text;
-    read_input(ip_path, text);
+    CaPS_SA::read_input(ip_path, text);
 /*
     constexpr char lookup[4] = {'A', 'C', 'T', 'G'};
     size_t len = text.size();
