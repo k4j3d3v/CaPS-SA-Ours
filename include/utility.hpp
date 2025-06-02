@@ -159,6 +159,17 @@ public:
 };
 
 
+// Returns the LCP length of `x` and `y`, with context-length `ctx`.
+inline std::size_t lcp_unvectorized(const char* const x, const char* const y, const std::size_t ctx)
+{
+    std::size_t l = 0;
+    while(l < ctx && x[l] == y[l])
+        l++;
+
+    return l;
+}
+
+
 template <typename T_seq_>
 void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
 {

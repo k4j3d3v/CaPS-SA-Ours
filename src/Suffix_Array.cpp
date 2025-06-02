@@ -879,7 +879,7 @@ bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_
     assert(x < n_ && y < n_);
 
     const auto l = std::min(n_ - x, n_ - y);    // TODO: add context-bound.
-    lcp = this->lcp(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_); // Using byte-by-byte variant for correctness-check.
+    lcp = lcp_unvectorized(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_);  // Using byte-by-byte variant for correctness-check.
 
     if(lcp == l)    // Shorter suffix is a prefix of the longer one;
                     // possible in strings w/o designated delimiters, and in context-bounded SAs.

@@ -76,9 +76,6 @@ private:
 
 
     // Returns the LCP length of `x` and `y`, with context-length `ctx`.
-    static idx_t lcp(const char* x, const char* y, idx_t ctx);
-
-    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
     // `N x 32` bytes of prefix comparisons are loop-unrolled.
     template <std::size_t N> static idx_t LCP(const char* x, const char* y, idx_t ctx);
 
@@ -299,17 +296,6 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 
     void remove() { SA_bucket.remove(), LCP_bucket.remove(), sz_bucket.clear(); }
 };
-
-
-template <typename T_seq_, typename T_idx_>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char* const y, const idx_t ctx)
-{
-    idx_t l = 0;
-    while(l < ctx && x[l] == y[l])
-        l++;
-
-    return l;
-}
 
 
 template <typename T_seq_, typename T_idx_>
