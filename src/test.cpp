@@ -46,6 +46,42 @@ void cross_check_LCP(const char* const T, const std::size_t n)
     std::cerr << "\rChecked " << solved << " starting positions.\n";
 }
 
+
+void LCP_bandwidth(const char* const T, const std::size_t n)
+{
+// /*
+    {
+        const Suffix_Array<char, uint32_t> SA(T, n);
+
+        const auto t_0 = CaPS_SA::now();
+
+        uint64_t lcp_sum = 0;
+        for(std::size_t i = 0; i < n; ++i)
+            for(std::size_t j = i; j < n; ++j)
+                lcp_sum += SA.LCP(T + i, T + j, n - j);
+
+        const auto t_1 = CaPS_SA::now();
+        std::cerr << "LCP-bandwidth on raw text:    " << ((lcp_sum / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+    }
+// */
+
+// /*
+    {
+        const Genomic_Text G(T, n);
+
+        const auto t_0 = CaPS_SA::now();
+
+        uint64_t lcp_sum = 0;
+        for(std::size_t i = 0; i < n; ++i)
+            for(std::size_t j = i; j < n; ++j)
+                lcp_sum += G.LCP(i, j, n - j);
+
+        const auto t_1 = CaPS_SA::now();
+        std::cerr << "LCP-bandwidth on packed text: " << ((lcp_sum / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+    }
+// */
+}
+
 }
 
 
@@ -76,6 +112,7 @@ int main(int argc, char* argv[])
     }
 
     CaPS_SA::cross_check_LCP(text.data(), n);
+    CaPS_SA::LCP_bandwidth(text.data(), n);
 
     return 0;
 }
