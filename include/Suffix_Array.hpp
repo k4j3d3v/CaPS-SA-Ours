@@ -82,9 +82,6 @@ private:
     // `N x 32` bytes of prefix comparisons are loop-unrolled.
     template <std::size_t N> static idx_t LCP(const char* x, const char* y, idx_t ctx);
 
-    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
-    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
-
     // Returns the LCP length of the `32 x N`-bytes prefix of `x` and `y`.
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
 
@@ -220,6 +217,9 @@ public:
 
     // Returns the LCP-array.
     const idx_t* LCP() const { return LCP_; }
+
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
 
     // Constructs the SA and the LCP-array in internal memory.
     void construct();
