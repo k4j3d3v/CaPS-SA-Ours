@@ -336,7 +336,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
                 return lcp;
         }
 
-        return lcp + LCP<N - 1>(x + lcp, y + lcp, ctx - lcp);   // TODO: should directly fall down to `LCP<1>` to keep source-code size low.
+        return lcp + LCP<0>(x + lcp, y + lcp, ctx - lcp);
     }
 }
 
