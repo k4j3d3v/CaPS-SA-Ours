@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 
 namespace CaPS_SA
@@ -25,12 +26,13 @@ void cross_check_LCP(const char* const T, const std::size_t n)
     {
         parlay::parallel_for(0, n, [&](const std::size_t j)
         {
-            const auto lcp_exp = suf_arr.LCP(T + i, T + j, n - std::max(i, j));
-            const auto lcp_comp = G.LCP(i, j, n - std::max(i, j));
+            const auto lcp_exp = lcp_unvectorized(T + i, T + j, n - std::max(i, j));
+            const auto lcp_vec = suf_arr.LCP(T + i, T + j, n - std::max(i, j));
+            const auto lcp_pck = G.LCP(i, j, n - std::max(i, j));
 
-            if(lcp_comp != lcp_exp)
+            if(lcp_vec != lcp_exp || lcp_pck != lcp_exp)
             {
-                std::cerr << "At pair (" << i << ", " << j << "), expected LCP " << lcp_exp << ", received LCP " << lcp_comp << ".\n";
+                std::cerr << "At pair (" << i << ", " << j << "), expected LCP " << lcp_exp << "; LCP-vectorized " << lcp_vec << ", LCP-packed: " << lcp_pck << ".\n";
                 std::exit(EXIT_FAILURE);
             }
         }
