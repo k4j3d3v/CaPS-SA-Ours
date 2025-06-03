@@ -81,7 +81,7 @@ void Suffix_Array<T_seq_, T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_
 
             assert((X[i] + m) + (context - m) <= n_ && (Y[j] + m) + (context - m) <= n_);
 
-            const idx_t n = m + LCP(T_ + (X[i] + m), T_ + (Y[j] + m), context - m); // LCP(X_i, Y_j)
+            const idx_t n = m + LCP(X[i] + m, Y[j] + m, context - m);   // LCP(X_i, Y_j)
 
             // Whether the shorter suffix is a prefix of the longer one.
             Z[k] = (n == max_n ?    std::max(X[i], Y[j]) :
@@ -412,14 +412,14 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
     while(r - l > 1)    // Candidate matches exist.
     {
         c = (l + r) / 2;
-        auto const suf = T_ + X[c]; // The suffix at the middle.
-        const auto suf_len = n_ - X[c]; // Length of the suffix.
+        auto const suf = X[c];  // The suffix at the middle.
+        const auto suf_len = n_ - suf;  // Length of the suffix.
 
         idx_t lcp_c = std::min(lcp_l, lcp_r);   // LCP(X[c], P).
         lcp_c = std::min(lcp_c, cutoff);
         auto max_lcp = std::min(std::min(suf_len, P_len), max_context); // Maximum possible LCP, i.e. length of the shorter string.
         max_lcp = std::min(max_lcp, cutoff);
-        lcp_c += LCP(suf + lcp_c, T_ + p + lcp_c, max_lcp - lcp_c); // Skip an informed number of character comparisons.
+        lcp_c += LCP(suf + lcp_c, p + lcp_c, max_lcp - lcp_c);  // Skip an informed number of character comparisons.
 
         if(lcp_c == max_lcp)    // One is a prefix of the other, or they align at least up-to the context- or the cutoff-length.
         {
@@ -435,7 +435,7 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
                 l = c, lcp_l = lcp_c;
         }
         else    // They mismatch within their relevant prefixes.
-            if(suf[lcp_c] < T_[p + lcp_c])  // X[c] < P
+            if(T_[suf + lcp_c] < T_[p + lcp_c]) // X[c] < P
                 l = c, lcp_l = lcp_c;
             else    // P < X[c]
                 r = c, lcp_r = lcp_c, soln = c;

@@ -82,6 +82,9 @@ private:
     // Returns the LCP length of the `32 x N`-bytes prefix of `x` and `y`.
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
 
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
+
     // Merges the sorted collections of suffixes, `X` and `Y`, with lengths
     // `len_x` and `len_y` and LCP-arrays `LCP_x` and `LCP_y` respectively, into
     // `Z`. Also constructs `Z`'s LCP-array in `LCP_z`.
@@ -215,8 +218,9 @@ public:
     // Returns the LCP-array.
     const idx_t* LCP() const { return LCP_; }
 
-    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
-    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
+    // Returns the LCP length of the suffixes `x` and `y`, with context-length
+    // `ctx`.
+    idx_t LCP(idx_t x, idx_t y, idx_t ctx) const;
 
     // Constructs the SA and the LCP-array in internal memory.
     void construct();
@@ -358,6 +362,13 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_s
                 __builtin_ctzll(w_x ^ w_y) >> 3 :
                 LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)))
             / sizeof(T_seq_);
+}
+
+
+template <typename T_seq_, typename T_idx_>
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const idx_t x, const idx_t y, const idx_t ctx) const
+{
+    return LCP(T_ + x, T_ + y, ctx);
 }
 
 }

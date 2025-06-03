@@ -27,7 +27,7 @@ void cross_check_LCP(const char* const T, const std::size_t n)
         parlay::parallel_for(0, n, [&](const std::size_t j)
         {
             const auto lcp_exp = lcp_unvectorized(T + i, T + j, n - std::max(i, j));
-            const auto lcp_vec = suf_arr.LCP(T + i, T + j, n - std::max(i, j));
+            const auto lcp_vec = suf_arr.LCP(i, j, n - std::max(i, j));
             const auto lcp_pck = G.LCP(i, j, n - std::max(i, j));
 
             if(lcp_vec != lcp_exp || lcp_pck != lcp_exp)
@@ -60,7 +60,7 @@ void LCP_bandwidth(const char* const T, const std::size_t n)
         uint64_t bytes_scanned = 0;
         for(std::size_t i = 0; i < n; ++i)
             for(std::size_t j = i; j < n; ++j)
-                bytes_scanned += (SA.LCP(T + i, T + j, n - j) + 1);
+                bytes_scanned += (SA.LCP(i, j, n - j) + 1);
 
         const auto t_1 = CaPS_SA::now();
         std::cerr << "LCP-bandwidth on raw text:    " << ((bytes_scanned / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
