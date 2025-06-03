@@ -128,11 +128,11 @@ private:
     void locate_pivots(idx_t* P) const;
 
     // Returns the first index `idx` into the sorted suffix collection `X` of
-    // length `n` such that `X[idx]` is strictly greater than the query pattern
-    // `P` of length `P_len`.
+    // length `n` such that `X[idx]` is strictly greater than the query suffix
+    // `P`.
     // NB: it is not 'strict' currently, and rather provides an upper bound for
-    // a fixed-sized prefix of `P` when it is large, for faster performance.
-    idx_t upper_bound(const idx_t* X, idx_t n, const T_seq_* P, idx_t P_len) const;
+    // a fixed-sized prefix of `p` when it is large, for faster performance.
+    idx_t upper_bound(const idx_t* X, idx_t n, idx_t p) const;
 
     // Collates the sub-subarrays delineated by the pivot locations in each
     // sorted subarray, present in `P`, into appropriate partitions.

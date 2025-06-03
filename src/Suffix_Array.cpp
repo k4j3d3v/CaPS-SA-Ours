@@ -256,7 +256,7 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays_ext_mem()
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
             {
-                P[piv_id + 1] = upper_bound(SA, len, T_ + pivot_[piv_id], n_ - pivot_[piv_id]);
+                P[piv_id + 1] = upper_bound(SA, len, pivot_[piv_id]);
                 assert(P[piv_id + 1] >= P[piv_id]);
             }
 
@@ -387,7 +387,7 @@ void Suffix_Array<T_seq_, T_idx_>::locate_pivots(idx_t* const P) const
             P_i[0] = 0, P_i[p_] = tot_subarr_size; // The two flanking pivot indices.
 
             for(idx_t j = 0; j < p_ - 1; ++j) // TODO: try parallelizing this loop too; observe performance diff.
-                P_i[j + 1] = upper_bound(X_i, tot_subarr_size, T_ + pivot_[j], n_ - pivot_[j]); // TODO: can shrink the search-range for successive searches.
+                P_i[j + 1] = upper_bound(X_i, tot_subarr_size, pivot_[j]);  // TODO: can shrink the search-range for successive searches.
         };
 
     parlay::parallel_for(0, p_, locate, 1);
@@ -398,10 +398,11 @@ void Suffix_Array<T_seq_, T_idx_>::locate_pivots(idx_t* const P) const
 
 
 template <typename T_seq_, typename T_idx_>
-T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const T_seq_* const P, const idx_t P_len) const
+T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const idx_t p) const
 {
     // Invariant: SA[l] < P < SA[r].
 
+    const auto P_len = n_ - p;
     int64_t l = -1, r = n;  // (Exclusive-) Range of the iterations in the binary search.
     idx_t c;    // Midpoint in each iteration.
     idx_t soln = n; // Solution of the search.
@@ -418,7 +419,7 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
         lcp_c = std::min(lcp_c, cutoff);
         auto max_lcp = std::min(std::min(suf_len, P_len), max_context); // Maximum possible LCP, i.e. length of the shorter string.
         max_lcp = std::min(max_lcp, cutoff);
-        lcp_c += LCP(suf + lcp_c, P + lcp_c, max_lcp - lcp_c);  // Skip an informed number of character comparisons.
+        lcp_c += LCP(suf + lcp_c, T_ + p + lcp_c, max_lcp - lcp_c); // Skip an informed number of character comparisons.
 
         if(lcp_c == max_lcp)    // One is a prefix of the other, or they align at least up-to the context- or the cutoff-length.
         {
@@ -434,7 +435,7 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
                 l = c, lcp_l = lcp_c;
         }
         else    // They mismatch within their relevant prefixes.
-            if(suf[lcp_c] < P[lcp_c])   // X[c] < P
+            if(suf[lcp_c] < T_[p + lcp_c])  // X[c] < P
                 l = c, lcp_l = lcp_c;
             else    // P < X[c]
                 r = c, lcp_r = lcp_c, soln = c;
