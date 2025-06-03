@@ -54,7 +54,7 @@ public:
     Genomic_Text& operator=(Genomic_Text&&) = delete;
 
     // Returns the code of the nucleobase at index `idx` of the original text.
-    uint8_t base_at(std::size_t idx) const;
+    uint8_t operator[](std::size_t idx) const;
 
     // Returns the LCP-length of the suffixes at indices `x` and `y`, with
     // context-length `ctx`.
@@ -62,7 +62,7 @@ public:
 };
 
 
-inline uint8_t Genomic_Text::base_at(const std::size_t idx) const
+inline uint8_t Genomic_Text::operator[](const std::size_t idx) const
 {
     assert(idx < n_);
 
@@ -144,7 +144,7 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
     if constexpr(N == 0)
     {
         for(; lcp < ctx; ++lcp)
-            if(base_at(x + lcp) != base_at(y + lcp))
+            if((*this)[x + lcp] != (*this)[y + lcp])
                 break;
 
         return lcp;
