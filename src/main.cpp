@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <type_traits>
 #include <cstdlib>
 #include <limits>
 #include <fstream>
@@ -44,6 +45,7 @@ int main(int argc, char* argv[])
     const bool ext_mem = true;  // TODO: take input.
 
     typedef char T_seq_;
+    constexpr T_seq_ sentinel = std::is_same<T_seq_, char>::value ? '$' : std::numeric_limits<T_seq_>::max();
 
     std::vector<T_seq_> text;
     CaPS_SA::read_input(ip_path, text);
@@ -62,6 +64,7 @@ int main(int argc, char* argv[])
     std::ofstream output(op_path);
 
     std::size_t n = text.size();
+    text.push_back(sentinel);
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {

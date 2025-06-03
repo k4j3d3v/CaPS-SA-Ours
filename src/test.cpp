@@ -104,6 +104,7 @@ int main(int argc, char* argv[])
             ch = std::toupper(ch);
 
     const std::size_t n = text.size();
+    text.push_back('$');
 
     if(n > std::numeric_limits<uint32_t>::max())
     {

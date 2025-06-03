@@ -350,7 +350,14 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
 template <typename T_seq_, typename T_idx_>
 inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t ctx)
 {
-    return LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)) / sizeof(T_seq_);
+    uint64_t w_x, w_y;
+    std::memcpy(static_cast<void*>(&w_x), x, 8);
+    std::memcpy(static_cast<void*>(&w_y), y, 8);
+
+    return  (w_x != w_y ?
+                __builtin_ctzll(w_x ^ w_y) >> 3 :
+                LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)))
+            / sizeof(T_seq_);
 }
 
 }
