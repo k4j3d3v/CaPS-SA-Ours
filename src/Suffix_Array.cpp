@@ -85,7 +85,7 @@ void Suffix_Array<T_seq_, T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_
 
             // Whether the shorter suffix is a prefix of the longer one.
             Z[k] = (n == max_n ?    std::max(X[i], Y[j]) :
-                                    (T_[X[i] + n] < T_[Y[j] + n] ? X[i] : Y[j]));
+                                    (is_lesser(X[i] + n, Y[j] + n) ? X[i] : Y[j]));
             LCP_z[k] = (Z[k] == X[i] ? l_x : m);
             m = n;
         }
@@ -435,7 +435,7 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
                 l = c, lcp_l = lcp_c;
         }
         else    // They mismatch within their relevant prefixes.
-            if(T_[suf + lcp_c] < T_[p + lcp_c]) // X[c] < P
+            if(is_lesser(suf + lcp_c, p + lcp_c))   // X[c] < P
                 l = c, lcp_l = lcp_c;
             else    // P < X[c]
                 r = c, lcp_r = lcp_c, soln = c;
@@ -888,7 +888,7 @@ bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_
         return x > y;   // Shorter suffixes are considered lexicographically smaller in such cases.
     }
 
-    return T_[x + lcp] < T_[y + lcp];
+    return is_lesser(x + lcp, y + lcp);
 }
 
 

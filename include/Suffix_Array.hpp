@@ -180,6 +180,10 @@ private:
     template <typename T_>
     static void prefix_sum(T_* A, idx_t n);
 
+    // Returns `true` iff the symbol at index `x` is smaller than the symbol at
+    // index `y`.
+    bool is_lesser(idx_t x, idx_t y) const;
+
     // Returns `true` iff the suffix `x` is lexicographically smaller than the
     // suffix `y`. Their LCP is computed in `lcp`.
     bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
@@ -369,6 +373,13 @@ template <typename T_seq_, typename T_idx_>
 inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const idx_t x, const idx_t y, const idx_t ctx) const
 {
     return LCP(T_ + x, T_ + y, ctx);
+}
+
+
+template <typename T_seq_, typename T_idx_>
+inline bool Suffix_Array<T_seq_, T_idx_>::is_lesser(const idx_t x, const idx_t y) const
+{
+    return T_[x] < T_[y];
 }
 
 }
