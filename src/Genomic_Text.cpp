@@ -1,6 +1,5 @@
 
 #include "Genomic_Text.hpp"
-#include "utility.hpp"
 #include "parlay/parallel.h"
 
 #include <cassert>

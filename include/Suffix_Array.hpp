@@ -364,7 +364,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_s
 
     return  (w_x != w_y ?
                 __builtin_ctzll(w_x ^ w_y) >> 3 :
-                LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)))
+                LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)))   // TODO: advance a bit (8 / sizeof(T_seq_)) here.
             / sizeof(T_seq_);
 }
 
