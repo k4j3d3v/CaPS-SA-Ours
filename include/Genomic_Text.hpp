@@ -103,7 +103,7 @@ inline uint64_t Genomic_Text::load_word(const std::size_t i) const
 
     uint64_t w;
     std::memcpy(static_cast<void*>(&w), B.data() + base, 8);
-    return (w >> (unwanted_trail * 2)) & 0x3FFF'FFFFull;
+    return (w >> (unwanted_trail * 2)) & 0x03FF'FFFF'FFFF'FFFFull;
 }
 
 
@@ -172,8 +172,14 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
 
     const auto w_x = load_word(x);
     const auto w_y = load_word(y);
+    assert((w_x >> 58) == 0 && (w_y >> 58) == 0);
+
+    w_x != w_y ?
+        assert((static_cast<std::size_t>(__builtin_ctzll(w_x ^ w_y)) >> 1) == LCP<1>(x, y, ctx)) :
+        assert(LCP<1>(x, y, ctx) >= 29);
+
     return w_x != w_y ?
-            __builtin_ctzll(w_x ^ w_y) >> 1 :
+            static_cast<std::size_t>(__builtin_ctzll(w_x ^ w_y)) >> 1 :
             29 + LCP<1>(x + 29, y + 29, ctx - 29);
 }
 
