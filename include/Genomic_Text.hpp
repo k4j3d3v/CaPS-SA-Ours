@@ -30,8 +30,7 @@ class Genomic_Text
     __m256i load(std::size_t i) const;
 
     // Returns the 29-nucleobase block (8 bytes) from onward the `i`'th
-    // nucleobase, in 64-bits little-endian. No guarantees are provided for the
-    // highest 6-bits.
+    // nucleobase, in 64-bits little-endian. The highest 6-bits are zeroed.
     uint64_t load_word(std::size_t i) const;
 
     // Returns the LCP length of the `124 x N`-nucleobases prefix of the
@@ -104,7 +103,7 @@ inline uint64_t Genomic_Text::load_word(const std::size_t i) const
 
     uint64_t w;
     std::memcpy(static_cast<void*>(&w), B.data() + base, 8);
-    return w >> (unwanted_trail * 2);
+    return (w >> (unwanted_trail * 2)) & 0x3FFF'FFFFull;
 }
 
 
@@ -168,14 +167,14 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
 {
     assert(x + ctx <= n_ && y + ctx <= n_);
 
-    if(x + 8 >= ctx || y + 8 >= ctx)
+    if(x + 29 > ctx || y + 29 > ctx)
         return LCP<0>(x, y, ctx);
 
     const auto w_x = load_word(x);
     const auto w_y = load_word(y);
-    const auto match = __builtin_ctzll(w_x ^ w_y) >> 1;
-
-    return match < 29 ? match : 29 + LCP<1>(x + 29, y + 29, ctx - 29);
+    return w_x != w_y ?
+            __builtin_ctzll(w_x ^ w_y) >> 1 :
+            29 + LCP<1>(x + 29, y + 29, ctx - 29);
 }
 
 }
