@@ -664,7 +664,7 @@ void Suffix_Array<T_seq_, T_idx_>::compute_partition_boundary_lcp()
         [&](const idx_t j)
         {
             const auto part_idx = part_size_scan_[j];
-            LCP_[part_idx] = LCP(T_ + SA_[part_idx - 1], T_ + SA_[part_idx], n_ - std::max(SA_[part_idx - 1], SA_[part_idx]));
+            LCP_[part_idx] = LCP(SA_[part_idx - 1], SA_[part_idx], n_ - std::max(SA_[part_idx - 1], SA_[part_idx]));
         };
 
     parlay::parallel_for(1, p_, compute_boundary_lcp, 1);
