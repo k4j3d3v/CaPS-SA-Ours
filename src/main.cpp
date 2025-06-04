@@ -2,6 +2,7 @@
 #include "Suffix_Array.hpp"
 #include "utility.hpp"
 
+#include <cstddef>
 #include <vector>
 #include <string>
 #include <type_traits>
@@ -64,7 +65,8 @@ int main(int argc, char* argv[])
     std::ofstream output(op_path);
 
     std::size_t n = text.size();
-    text.push_back(sentinel);
+    for(std::size_t i = 0; i < 7; ++i)
+        text.push_back(sentinel);
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
