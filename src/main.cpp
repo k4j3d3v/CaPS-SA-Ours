@@ -101,7 +101,6 @@ int main(int argc, char* argv[])
 #ifndef NDEBUG
     std::cout << "Warning: Executing in Debug Mode.\n";
 #endif
-
     // TODO: standardize the API.
     constexpr auto arg_count = 4;
     if(argc < arg_count)
@@ -109,7 +108,6 @@ int main(int argc, char* argv[])
         std::cerr << "Usage: CaPS_SA <input_path> <output_path> <work_path_prefix> <(optional) input type [default: 't']> <(optional)-subproblem-count> <(optional)-bounded-context>>\n";
         std::exit(EXIT_FAILURE);
     }
-
 
     const std::string ip_path(argv[1]);
     const std::string op_path(argv[2]);
