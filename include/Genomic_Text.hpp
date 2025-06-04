@@ -58,6 +58,10 @@ public:
     // Returns the LCP-length of the suffixes at indices `x` and `y`, with
     // context-length `ctx`.
     std::size_t LCP(std::size_t x, std::size_t y, std::size_t ctx) const;
+
+    // Returns the LCP length of the suffixes `x` and `y`, with context-length
+    // `ctx`.
+    std::size_t lcp_unvectorized(std::size_t x, std::size_t y, std::size_t ctx) const;
 };
 
 
@@ -181,6 +185,12 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
     return w_x != w_y ?
             static_cast<std::size_t>(__builtin_ctzll(w_x ^ w_y)) >> 1 :
             29 + LCP<1>(x + 29, y + 29, ctx - 29);
+}
+
+
+inline std::size_t Genomic_Text::lcp_unvectorized(const std::size_t x, const std::size_t y, const std::size_t ctx) const
+{
+    return LCP<0>(x, y, ctx);
 }
 
 }

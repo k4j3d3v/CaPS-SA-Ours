@@ -5,6 +5,7 @@
 
 
 #include "Ext_Mem_Bucket.hpp"
+#include "Genomic_Text.hpp"
 #include "Spin_Lock.hpp"
 #include "utility.hpp"
 
@@ -13,8 +14,10 @@
 #include <cstring>
 #include <vector>
 #include <string>
-#include <cstdlib>
 #include <fstream>
+#include <type_traits>
+#include <cstdlib>
+#include <cassert>
 #include <immintrin.h>
 
 // =============================================================================
@@ -372,14 +375,20 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_s
 template <typename T_seq_, typename T_idx_>
 inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const idx_t x, const idx_t y, const idx_t ctx) const
 {
-    return LCP(T_ + x, T_ + y, ctx);
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        return T_->LCP(x, y, ctx);
+    else
+        return LCP(T_ + x, T_ + y, ctx);
 }
 
 
 template <typename T_seq_, typename T_idx_>
 inline bool Suffix_Array<T_seq_, T_idx_>::is_lesser(const idx_t x, const idx_t y) const
 {
-    return T_[x] < T_[y];
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        return (*T_)[x] < (*T_)[y];
+    else
+        return T_[x] < T_[y];
 }
 
 }

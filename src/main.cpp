@@ -64,19 +64,24 @@ int main(int argc, char* argv[])
 */
     std::ofstream output(op_path);
 
+    text.pop_back();
     std::size_t n = text.size();
     for(std::size_t i = 0; i < 7; ++i)
         text.push_back(sentinel);
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Genomic_Text G(text.data(), n);
+        // CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint32_t> suf_arr(&G, n, ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<T_seq_, uint64_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Genomic_Text G(text.data(), n);
+        // CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint32_t> suf_arr(&G, n, ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }

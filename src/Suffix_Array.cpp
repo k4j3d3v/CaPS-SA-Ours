@@ -880,7 +880,12 @@ bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_
     assert(x < n_ && y < n_);
 
     const auto l = std::min(n_ - x, n_ - y);    // TODO: add context-bound.
-    lcp = lcp_unvectorized(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_);  // Using byte-by-byte variant for correctness-check.
+
+    // Using byte-by-byte variant for correctness-check.
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        lcp = T_->lcp_unvectorized(x, y, l);
+    else
+        lcp = lcp_unvectorized(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_);  // Using byte-by-byte variant for correctness-check.
 
     if(lcp == l)    // Shorter suffix is a prefix of the longer one;
                     // possible in strings w/o designated delimiters, and in context-bounded SAs.
@@ -1013,3 +1018,7 @@ template class CaPS_SA::Suffix_Array<char, uint32_t>;
 template class CaPS_SA::Suffix_Array<char, uint64_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint32_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint64_t>;
+template class CaPS_SA::Suffix_Array<uint64_t, uint32_t>;
+template class CaPS_SA::Suffix_Array<uint64_t, uint64_t>;
+template class CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint32_t>;
+template class CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint64_t>;
