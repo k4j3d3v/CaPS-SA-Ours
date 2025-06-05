@@ -171,7 +171,7 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
 {
     assert(x + ctx <= n_ && y + ctx <= n_);
 
-    if(x + 29 > ctx || y + 29 > ctx)
+    if(ctx < 29)
         return LCP<0>(x, y, ctx);
 
     const auto w_x = load_word(x);
