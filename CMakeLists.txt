@@ -70,6 +70,10 @@ if(UBSAN)
     list(APPEND LINK_FLAGS ${UBSAN_LINK_FLAGS} ${UBSAN_FLAGS})
 endif()
 
+if(DEBUG_INFO)
+    list(APPEND COMPILE_FLAGS ${DEBUG_FLAGS})
+endif()
+
 
 # Add the required preprocessor definitions (`#define`s) to pass on.
 add_compile_definitions(CMAKE_EXPORT_COMPILE_COMMANDS)  # For better `clangd` scanning.
