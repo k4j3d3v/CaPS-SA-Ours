@@ -79,7 +79,7 @@ void LCP_bandwidth(const char* const T, const std::size_t n)
                 bases_scanned += (G.LCP(i, j, n - j) + 1);
 
         const auto t_1 = CaPS_SA::now();
-        std::cerr << "LCP-bandwidth on packed text: " << (((bases_scanned / 4.0) / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+        std::cerr << "LCP-bandwidth on packed text: " << ((bases_scanned / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " Mbases/s.\n";
     }
 // */
 }
