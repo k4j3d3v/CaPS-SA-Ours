@@ -84,6 +84,58 @@ void LCP_bandwidth(const char* const T, const std::size_t n)
 // */
 }
 
+
+void LCP_bandwidth_thresholded(const char* const T, const std::size_t n, const std::size_t th = 32)
+{
+// /*
+    {
+        const Suffix_Array<char, uint32_t> SA(T, n);
+
+        uint64_t bytes_scanned = 0;
+        double time = 0;
+
+        for(std::size_t i = 0; i < n; ++i)
+            for(std::size_t j = i; j < n; ++j)
+            {
+                const auto t_pre = now();
+                const auto scan = SA.LCP(i, j, n - j) + 1;
+                if(scan >= th)
+                {
+                    const auto t_post = now();
+                    bytes_scanned += scan;
+                    time += duration(t_post - t_pre);
+                }
+            }
+
+        std::cerr << "LCP-bandwidth on raw text with threshold " << th << ":    " << ((bytes_scanned / time) / (1024.0 * 1024.0)) << " MB/s.\n";
+    }
+// */
+
+// /*
+    {
+        const Genomic_Text G(T, n);
+
+        uint64_t bases_scanned = 0;
+        double time = 0;
+
+        for(std::size_t i = 0; i < n; ++i)
+            for(std::size_t j = i; j < n; ++j)
+            {
+                const auto t_pre = now();
+                const auto scan = G.LCP(i, j, n - j) + 1;
+                if(scan >= th)
+                {
+                    const auto t_post = now();
+                    bases_scanned += scan;
+                    time += duration(t_post - t_pre);
+                }
+            }
+
+        std::cerr << "LCP-bandwidth on packed text with threshold " << th << ": " << ((bases_scanned / time) / (1024.0 * 1024.0)) << " Mbases/s.\n";
+    }
+// */
+}
+
 }
 
 
@@ -117,6 +169,7 @@ int main(int argc, char* argv[])
 
     CaPS_SA::cross_check_LCP(text.data(), n);
     CaPS_SA::LCP_bandwidth(text.data(), n);
+    CaPS_SA::LCP_bandwidth_thresholded(text.data(), n, 32);
 
     return 0;
 }
