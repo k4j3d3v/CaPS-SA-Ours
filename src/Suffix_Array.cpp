@@ -81,11 +81,11 @@ void Suffix_Array<T_seq_, T_idx_>::merge(const idx_t* X, idx_t len_x, const idx_
 
             assert((X[i] + m) + (context - m) <= n_ && (Y[j] + m) + (context - m) <= n_);
 
-            const idx_t n = m + LCP(T_ + (X[i] + m), T_ + (Y[j] + m), context - m); // LCP(X_i, Y_j)
+            const idx_t n = m + LCP(X[i] + m, Y[j] + m, context - m);   // LCP(X_i, Y_j)
 
             // Whether the shorter suffix is a prefix of the longer one.
             Z[k] = (n == max_n ?    std::max(X[i], Y[j]) :
-                                    (T_[X[i] + n] < T_[Y[j] + n] ? X[i] : Y[j]));
+                                    (is_lesser(X[i] + n, Y[j] + n) ? X[i] : Y[j]));
             LCP_z[k] = (Z[k] == X[i] ? l_x : m);
             m = n;
         }
@@ -256,7 +256,7 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays_ext_mem()
             P[0] = 0, P[p_] = len;  // Two flanking pivot indices.
             for(idx_t piv_id = 0; piv_id < p_ - 1; ++piv_id)
             {
-                P[piv_id + 1] = upper_bound(SA, len, T_ + pivot_[piv_id], n_ - pivot_[piv_id]);
+                P[piv_id + 1] = upper_bound(SA, len, pivot_[piv_id]);
                 assert(P[piv_id + 1] >= P[piv_id]);
             }
 
@@ -387,7 +387,7 @@ void Suffix_Array<T_seq_, T_idx_>::locate_pivots(idx_t* const P) const
             P_i[0] = 0, P_i[p_] = tot_subarr_size; // The two flanking pivot indices.
 
             for(idx_t j = 0; j < p_ - 1; ++j) // TODO: try parallelizing this loop too; observe performance diff.
-                P_i[j + 1] = upper_bound(X_i, tot_subarr_size, T_ + pivot_[j], n_ - pivot_[j]); // TODO: can shrink the search-range for successive searches.
+                P_i[j + 1] = upper_bound(X_i, tot_subarr_size, pivot_[j]);  // TODO: can shrink the search-range for successive searches.
         };
 
     parlay::parallel_for(0, p_, locate, 1);
@@ -398,10 +398,11 @@ void Suffix_Array<T_seq_, T_idx_>::locate_pivots(idx_t* const P) const
 
 
 template <typename T_seq_, typename T_idx_>
-T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const T_seq_* const P, const idx_t P_len) const
+T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx_t n, const idx_t p) const
 {
     // Invariant: SA[l] < P < SA[r].
 
+    const auto P_len = n_ - p;
     int64_t l = -1, r = n;  // (Exclusive-) Range of the iterations in the binary search.
     idx_t c;    // Midpoint in each iteration.
     idx_t soln = n; // Solution of the search.
@@ -411,14 +412,14 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
     while(r - l > 1)    // Candidate matches exist.
     {
         c = (l + r) / 2;
-        auto const suf = T_ + X[c]; // The suffix at the middle.
-        const auto suf_len = n_ - X[c]; // Length of the suffix.
+        auto const suf = X[c];  // The suffix at the middle.
+        const auto suf_len = n_ - suf;  // Length of the suffix.
 
         idx_t lcp_c = std::min(lcp_l, lcp_r);   // LCP(X[c], P).
         lcp_c = std::min(lcp_c, cutoff);
         auto max_lcp = std::min(std::min(suf_len, P_len), max_context); // Maximum possible LCP, i.e. length of the shorter string.
         max_lcp = std::min(max_lcp, cutoff);
-        lcp_c += LCP(suf + lcp_c, P + lcp_c, max_lcp - lcp_c);  // Skip an informed number of character comparisons.
+        lcp_c += LCP(suf + lcp_c, p + lcp_c, max_lcp - lcp_c);  // Skip an informed number of character comparisons.
 
         if(lcp_c == max_lcp)    // One is a prefix of the other, or they align at least up-to the context- or the cutoff-length.
         {
@@ -434,7 +435,7 @@ T_idx_ Suffix_Array<T_seq_, T_idx_>::upper_bound(const idx_t* const X, const idx
                 l = c, lcp_l = lcp_c;
         }
         else    // They mismatch within their relevant prefixes.
-            if(suf[lcp_c] < P[lcp_c])   // X[c] < P
+            if(is_lesser(suf + lcp_c, p + lcp_c))   // X[c] < P
                 l = c, lcp_l = lcp_c;
             else    // P < X[c]
                 r = c, lcp_r = lcp_c, soln = c;
@@ -663,7 +664,7 @@ void Suffix_Array<T_seq_, T_idx_>::compute_partition_boundary_lcp()
         [&](const idx_t j)
         {
             const auto part_idx = part_size_scan_[j];
-            LCP_[part_idx] = LCP(T_ + SA_[part_idx - 1], T_ + SA_[part_idx], n_ - std::max(SA_[part_idx - 1], SA_[part_idx]));
+            LCP_[part_idx] = LCP(SA_[part_idx - 1], SA_[part_idx], n_ - std::max(SA_[part_idx - 1], SA_[part_idx]));
         };
 
     parlay::parallel_for(1, p_, compute_boundary_lcp, 1);
@@ -879,7 +880,12 @@ bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_
     assert(x < n_ && y < n_);
 
     const auto l = std::min(n_ - x, n_ - y);    // TODO: add context-bound.
-    lcp = this->lcp(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_); // Using byte-by-byte variant for correctness-check.
+
+    // Using byte-by-byte variant for correctness-check.
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        lcp = T_->lcp_unvectorized(x, y, l);
+    else
+        lcp = lcp_unvectorized(reinterpret_cast<const char*>(T_ + x), reinterpret_cast<const char*>(T_ + y), l * sizeof(T_seq_)) / sizeof(T_seq_);  // Using byte-by-byte variant for correctness-check.
 
     if(lcp == l)    // Shorter suffix is a prefix of the longer one;
                     // possible in strings w/o designated delimiters, and in context-bounded SAs.
@@ -887,7 +893,7 @@ bool Suffix_Array<T_seq_, T_idx_>::is_smaller(const idx_t x, const idx_t y, idx_
         return x > y;   // Shorter suffixes are considered lexicographically smaller in such cases.
     }
 
-    return T_[x + lcp] < T_[y + lcp];
+    return is_lesser(x + lcp, y + lcp);
 }
 
 
@@ -1014,3 +1020,5 @@ template class CaPS_SA::Suffix_Array<uint32_t, uint32_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint64_t>;
 template class CaPS_SA::Suffix_Array<uint64_t, uint32_t>;
 template class CaPS_SA::Suffix_Array<uint64_t, uint64_t>;
+template class CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint32_t>;
+template class CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, uint64_t>;

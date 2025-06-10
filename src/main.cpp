@@ -1,34 +1,16 @@
 
 #include "Suffix_Array.hpp"
+#include "utility.hpp"
 
+#include <cstddef>
 #include <vector>
 #include <string>
+#include <type_traits>
 #include <cstdlib>
 #include <limits>
 #include <fstream>
 #include <iostream>
-#include <filesystem>
 
-
-template <typename T_seq_>
-void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
-{
-    std::error_code ec;
-    const auto file_size = std::filesystem::file_size(ip_path, ec);
-
-    if(ec)
-    {
-        std::cerr << ip_path << " : " << ec.message() << "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    assert(file_size % sizeof(T_seq_) == 0);
-
-    text.resize(file_size / sizeof(T_seq_));
-    std::ifstream input(ip_path);
-    input.read(reinterpret_cast<char*>(text.data()), file_size);
-    input.close();
-}
 
 template <typename T_seq_, typename T_idx_>
 void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofstream& output)
@@ -42,9 +24,17 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofs
 
 template <typename InputT>
 int construct_and_dump_sa_helper(std::vector<InputT>& text, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context) {
-    const bool ext_mem = true;  // TODO: take input.
+    const bool ext_mem = false;  // TODO: take input.
+
+    typedef char T_seq_;
+    constexpr T_seq_ sentinel = std::is_same<T_seq_, char>::value ? '$' : std::numeric_limits<T_seq_>::max();
+
     std::ofstream output(op_path);
+
+    text.pop_back();
     std::size_t n = text.size();
+    for(std::size_t i = 0; i < 7; ++i)
+        text.push_back(sentinel);
     std::cerr << "Text length: " << n << ".\n";
     if(n <= std::numeric_limits<uint32_t>::max())
     {
@@ -66,12 +56,12 @@ int construct_and_dump_sa_helper(std::vector<InputT>& text, const std::string& o
 int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context) {
     if (input_t == "t"){
         std::vector<char> text;
-        read_input<char>(ip_path, text);
+        CaPS_SA::read_input<char>(ip_path, text);
         construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context);
     } else {
         std::ifstream input(ip_path);
         if (!input) {
-            std::cerr << ip_path << " : could not be opened\n"; 
+            std::cerr << ip_path << " : could not be opened\n";
             std::exit(EXIT_FAILURE);
         }
         uint64_t length;
@@ -115,7 +105,7 @@ int main(int argc, char* argv[])
     const std::string data_type(argc >= 5 ? argv[4] : "t");
     const std::size_t subproblem_count(argc >= 6 ? std::atoi(argv[4]) : 0);
     const std::size_t max_context(argc >= 7 ? std::atoi(argv[5]) : 0);
-    
+
     return construct_and_dump_sa(data_type, ip_path, op_path, ext_mem_path, subproblem_count, max_context);
 }
 

@@ -5,6 +5,7 @@
 
 
 #include "Ext_Mem_Bucket.hpp"
+#include "Genomic_Text.hpp"
 #include "Spin_Lock.hpp"
 #include "utility.hpp"
 
@@ -13,8 +14,10 @@
 #include <cstring>
 #include <vector>
 #include <string>
-#include <cstdlib>
 #include <fstream>
+#include <type_traits>
+#include <cstdlib>
+#include <cassert>
 #include <immintrin.h>
 
 // =============================================================================
@@ -75,22 +78,15 @@ private:
     static constexpr idx_t nested_par_grain_size = (1lu << 13); // Granularity for nested parallelism to kick in.
 
 
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`.
-    static idx_t lcp(const char* x, const char* y, idx_t min_len);
-
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`. `N x 32` bytes of prefix comparisons are
-    // loop-unrolled.
-    template <std::size_t N>
-    static idx_t LCP(const char* x, const char* y, idx_t min_len);
-
-    // Returns the LCP length of `x` and `y`, where `min_len` is the length of
-    // the shorter of `x` and `y`.
-    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t min_len);
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    // `N x 32` bytes of prefix comparisons are loop-unrolled.
+    template <std::size_t N> static idx_t LCP(const char* x, const char* y, idx_t ctx);
 
     // Returns the LCP length of the `32 x N`-bytes prefix of `x` and `y`.
     template <std::size_t N> static idx_t LCP_unrolled(const char* x, const char* y);
+
+    // Returns the LCP length of `x` and `y`, with context-length `ctx`.
+    static idx_t LCP(const T_seq_* x, const T_seq_* y, idx_t ctx);
 
     // Merges the sorted collections of suffixes, `X` and `Y`, with lengths
     // `len_x` and `len_y` and LCP-arrays `LCP_x` and `LCP_y` respectively, into
@@ -138,11 +134,11 @@ private:
     void locate_pivots(idx_t* P) const;
 
     // Returns the first index `idx` into the sorted suffix collection `X` of
-    // length `n` such that `X[idx]` is strictly greater than the query pattern
-    // `P` of length `P_len`.
+    // length `n` such that `X[idx]` is strictly greater than the query suffix
+    // `P`.
     // NB: it is not 'strict' currently, and rather provides an upper bound for
-    // a fixed-sized prefix of `P` when it is large, for faster performance.
-    idx_t upper_bound(const idx_t* X, idx_t n, const T_seq_* P, idx_t P_len) const;
+    // a fixed-sized prefix of `p` when it is large, for faster performance.
+    idx_t upper_bound(const idx_t* X, idx_t n, idx_t p) const;
 
     // Collates the sub-subarrays delineated by the pivot locations in each
     // sorted subarray, present in `P`, into appropriate partitions.
@@ -187,6 +183,10 @@ private:
     template <typename T_>
     static void prefix_sum(T_* A, idx_t n);
 
+    // Returns `true` iff the symbol at index `x` is smaller than the symbol at
+    // index `y`.
+    bool is_lesser(idx_t x, idx_t y) const;
+
     // Returns `true` iff the suffix `x` is lexicographically smaller than the
     // suffix `y`. Their LCP is computed in `lcp`.
     bool is_smaller(idx_t x, idx_t y, idx_t& lcp) const;
@@ -224,6 +224,10 @@ public:
 
     // Returns the LCP-array.
     const idx_t* LCP() const { return LCP_; }
+
+    // Returns the LCP length of the suffixes `x` and `y`, with context-length
+    // `ctx`.
+    idx_t LCP(idx_t x, idx_t y, idx_t ctx) const;
 
     // Constructs the SA and the LCP-array in internal memory.
     void construct();
@@ -306,25 +310,14 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 
 
 template <typename T_seq_, typename T_idx_>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::lcp(const char* const x, const char* const y, const idx_t min_len)
-{
-    idx_t l = 0;
-    while(l < min_len && x[l] == y[l])
-        l++;
-
-    return l;
-}
-
-
-template <typename T_seq_, typename T_idx_>
 template <std::size_t N>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char* const y, const idx_t ctx)
 {
     idx_t lcp = 0;
 
-    if constexpr(N == 1)
+    if constexpr(N == 0)
     {
-        for(; lcp < min_len; ++lcp)
+        for(; lcp < ctx; ++lcp)
             if(x[lcp] != y[lcp])
                 break;
 
@@ -332,7 +325,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
     }
     else
     {
-        while((min_len - lcp) >= N * 32)
+        while((ctx - lcp) >= N * 32)
         {
             const auto l = LCP_unrolled<N>(x + lcp, y + lcp);
             lcp += l;
@@ -340,7 +333,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
                 return lcp;
         }
 
-        return lcp + LCP<N - 1>(x + lcp, y + lcp, min_len - lcp);
+        return lcp + LCP<0>(x + lcp, y + lcp, ctx - lcp);
     }
 }
 
@@ -366,9 +359,36 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
 
 
 template <typename T_seq_, typename T_idx_>
-inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t min_len)
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t ctx)
 {
-    return LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), min_len * sizeof(T_seq_)) / sizeof(T_seq_);
+    uint64_t w_x, w_y;
+    std::memcpy(static_cast<void*>(&w_x), x, 8);
+    std::memcpy(static_cast<void*>(&w_y), y, 8);
+
+    return  (w_x != w_y ?
+                __builtin_ctzll(w_x ^ w_y) >> 3 :
+                LCP<8>(reinterpret_cast<const char*>(x), reinterpret_cast<const char*>(y), ctx * sizeof(T_seq_)))   // TODO: advance a bit (8 / sizeof(T_seq_)) here.
+            / sizeof(T_seq_);
+}
+
+
+template <typename T_seq_, typename T_idx_>
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const idx_t x, const idx_t y, const idx_t ctx) const
+{
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        return T_->LCP(x, y, ctx);
+    else
+        return LCP(T_ + x, T_ + y, ctx);
+}
+
+
+template <typename T_seq_, typename T_idx_>
+inline bool Suffix_Array<T_seq_, T_idx_>::is_lesser(const idx_t x, const idx_t y) const
+{
+    if constexpr(std::is_same_v<T_seq_, Genomic_Text>)
+        return (*T_)[x] < (*T_)[y];
+    else
+        return T_[x] < T_[y];
 }
 
 }

@@ -6,6 +6,10 @@
 
 #include <cstddef>
 #include <utility>
+#include <string>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <cstdlib>
 #include <algorithm>
 #include <chrono>
@@ -153,6 +157,38 @@ public:
     // Frees the buffer's memory.
     void free() { deallocate(buf_); buf_ = nullptr; cap_ = 0; }
 };
+
+
+// Returns the LCP length of `x` and `y`, with context-length `ctx`.
+inline std::size_t lcp_unvectorized(const char* const x, const char* const y, const std::size_t ctx)
+{
+    std::size_t l = 0;
+    while(l < ctx && x[l] == y[l])
+        l++;
+
+    return l;
+}
+
+
+template <typename T_seq_>
+void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
+{
+    std::error_code ec;
+    const auto file_size = std::filesystem::file_size(ip_path, ec);
+
+    if(ec)
+    {
+        std::cerr << ip_path << " : " << ec.message() << "\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    assert(file_size % sizeof(T_seq_) == 0);
+
+    text.resize(file_size / sizeof(T_seq_));
+    std::ifstream input(ip_path);
+    input.read(reinterpret_cast<char*>(text.data()), file_size);
+    input.close();
+}
 
 }
 
