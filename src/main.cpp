@@ -22,29 +22,29 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofs
         output << suf_arr.LCP()[i] << " \n"[i == n - 1];
 }
 
-template <typename InputT>
-int construct_and_dump_sa_helper(std::vector<InputT>& text, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context) {
-    const bool ext_mem = false;  // TODO: take input.
-
-    typedef char T_seq_;
+template <typename T_seq_>
+int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context)
+{
+    const bool ext_mem = true;  // TODO: take input.
     constexpr T_seq_ sentinel = std::is_same<T_seq_, char>::value ? '$' : std::numeric_limits<T_seq_>::max();
 
-    std::ofstream output(op_path);
-
-    text.pop_back();
+    // text.pop_back();
     std::size_t n = text.size();
+    std::cerr << "Text length: " << n << ".\n";
+
     for(std::size_t i = 0; i < 7; ++i)
         text.push_back(sentinel);
-    std::cerr << "Text length: " << n << ".\n";
+
+    std::ofstream output(op_path);
     if(n <= std::numeric_limits<uint32_t>::max())
     {
-        CaPS_SA::Suffix_Array<InputT, uint32_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
     else
     {
-        CaPS_SA::Suffix_Array<InputT, uint64_t> suf_arr(text.data(), text.size(), ext_mem, ext_mem_path, subproblem_count, max_context);
+        CaPS_SA::Suffix_Array<T_seq_, uint64_t> suf_arr(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
         // suf_arr.dump(output);
     }
@@ -53,12 +53,16 @@ int construct_and_dump_sa_helper(std::vector<InputT>& text, const std::string& o
     return 0;
 }
 
-int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context) {
-    if (input_t == "t"){
+int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context)
+{
+    if(input_t == "t")
+    {
         std::vector<char> text;
         CaPS_SA::read_input<char>(ip_path, text);
         construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context);
-    } else {
+    }
+    else
+    {
         std::ifstream input(ip_path);
         if (!input) {
             std::cerr << ip_path << " : could not be opened\n";
