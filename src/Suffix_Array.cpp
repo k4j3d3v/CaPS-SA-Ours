@@ -1012,3 +1012,5 @@ template class CaPS_SA::Suffix_Array<char, uint32_t>;
 template class CaPS_SA::Suffix_Array<char, uint64_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint32_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint64_t>;
+template class CaPS_SA::Suffix_Array<uint64_t, uint32_t>;
+template class CaPS_SA::Suffix_Array<uint64_t, uint64_t>;

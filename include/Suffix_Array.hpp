@@ -373,6 +373,4 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_s
 
 }
 
-
-
 #endif
