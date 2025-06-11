@@ -144,7 +144,7 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
 {
     std::size_t lcp = 0;
 
-    if constexpr(N == 0)
+    if constexpr(N == 0)    // TODO: this branch needs to be optimized for bounded-ctx SAs.
     {
         for(; lcp < ctx; ++lcp)
             if((*this)[x + lcp] != (*this)[y + lcp])
