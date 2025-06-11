@@ -1,7 +1,9 @@
 
 #include "Suffix_Array.hpp"
+#include "Genomic_Text.hpp"
 #include "utility.hpp"
 
+#include <cstdint>
 #include <cstddef>
 #include <vector>
 #include <string>
@@ -10,6 +12,7 @@
 #include <limits>
 #include <fstream>
 #include <iostream>
+#include <cassert>
 
 
 template <typename T_seq_, typename T_idx_>
@@ -23,7 +26,7 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofs
 }
 
 template <typename T_seq_>
-int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context)
+int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& op_path, const std::string& ext_mem_path, const size_t subproblem_count, const size_t max_context, const bool genomic)
 {
     const bool ext_mem = true;  // TODO: take input.
     constexpr T_seq_ sentinel = std::is_same<T_seq_, char>::value ? '$' : std::numeric_limits<T_seq_>::max();
@@ -36,18 +39,26 @@ int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& o
         text.push_back(sentinel);
 
     std::ofstream output(op_path);
-    if(n <= std::numeric_limits<uint32_t>::max())
+    const auto construct = [&](auto sz)
     {
-        CaPS_SA::Suffix_Array<T_seq_, uint32_t> suf_arr(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context);
-        ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
-        // suf_arr.dump(output);
-    }
-    else
-    {
-        CaPS_SA::Suffix_Array<T_seq_, uint64_t> suf_arr(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context);
-        ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
-        // suf_arr.dump(output);
-    }
+        if(!genomic)
+        {
+            CaPS_SA::Suffix_Array<T_seq_, decltype(sz)> suf_arr(text.data(), sz, ext_mem, ext_mem_path, subproblem_count, max_context);
+            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
+            suf_arr.dump(output);
+        }
+        else
+        {
+            assert((std::is_same<T_seq_, char>::value));
+
+            const CaPS_SA::Genomic_Text G(reinterpret_cast<const char*>(text.data()), sz);
+            CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, decltype(sz)> suf_arr(&G, sz, ext_mem, ext_mem_path, subproblem_count, max_context);
+            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
+            suf_arr.dump(output);
+        }
+    };
+
+    n <= std::numeric_limits<uint32_t>::max() ? construct(static_cast<uint32_t>(n)) : construct(static_cast<uint64_t>(n));
 
     output.close();
     return 0;
@@ -55,11 +66,11 @@ int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& o
 
 int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context)
 {
-    if(input_t == "t")
+    if(input_t == "t" || input_t == "g")
     {
         std::vector<char> text;
         CaPS_SA::read_input<char>(ip_path, text);
-        construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context);
+        construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context, input_t == "g");
     }
     else
     {
@@ -77,13 +88,13 @@ int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const
             std::vector<uint64_t> text;
             text.resize(length);
             input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint64_t));
-            construct_and_dump_sa_helper<uint64_t>(text, op_path, ext_mem_path, subproblem_count, max_context);
+            construct_and_dump_sa_helper<uint64_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false);
             input.close();
         } else {
             std::vector<uint32_t> text;
             text.resize(length);
             input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint32_t));
-            construct_and_dump_sa_helper<uint32_t>(text, op_path, ext_mem_path, subproblem_count, max_context);
+            construct_and_dump_sa_helper<uint32_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false);
             input.close();
         }
     }
