@@ -9,7 +9,10 @@
 #include <cstddef>
 #include <cstdlib>
 #include <limits>
+#include <utility>
 #include <vector>
+#include <fstream>
+#include <filesystem>
 #include <algorithm>
 
 
@@ -136,6 +139,41 @@ void LCP_bandwidth_thresholded(const char* const T, const std::size_t n, const s
 // */
 }
 
+
+template <typename T_idx_>
+void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std::vector<std::pair<T_idx_, T_idx_>>& pairs)
+{
+// /*
+    {
+        const Suffix_Array<char, T_idx_> SA(T, n);
+
+        const auto t_0 = CaPS_SA::now();
+
+        uint64_t bytes_scanned = 0;
+        for(const auto& p : pairs)
+            bytes_scanned += (SA.LCP(p.first, p.second, n - p.second) + 1);
+
+        const auto t_1 = CaPS_SA::now();
+        std::cerr << "LCP-bandwidth on selected pairs on raw text:    " << ((bytes_scanned / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " MB/s.\n";
+    }
+// */
+
+// /*
+    {
+        const Genomic_Text G(T, n);
+
+        const auto t_0 = CaPS_SA::now();
+
+        uint64_t bases_scanned = 0;
+        for(const auto& p : pairs)
+            bases_scanned += (G.LCP(p.first, p.second, n - p.second) + 1);
+
+        const auto t_1 = CaPS_SA::now();
+        std::cerr << "LCP-bandwidth on selected pairs on packed text: " << ((bases_scanned / duration(t_1 - t_0)) / (1024.0 * 1024.0)) << " Mbases/s.\n";
+    }
+// */
+}
+
 }
 
 
@@ -167,9 +205,21 @@ int main(int argc, char* argv[])
         std::exit(EXIT_FAILURE);
     }
 
-    CaPS_SA::cross_check_LCP(text.data(), n);
-    CaPS_SA::LCP_bandwidth(text.data(), n);
-    CaPS_SA::LCP_bandwidth_thresholded(text.data(), n, 32);
+    // CaPS_SA::cross_check_LCP(text.data(), n);
+    // CaPS_SA::LCP_bandwidth(text.data(), n);
+    // CaPS_SA::LCP_bandwidth_thresholded(text.data(), n, 32);
+
+    if(argc >= 3)
+    {
+        const std::string pairs_path(argv[2]);
+        const auto bytes = std::filesystem::file_size(pairs_path);
+        std::vector<std::pair<uint32_t, uint32_t>> P(bytes / sizeof(decltype(P)::value_type));
+
+        std::cerr << "#Pairs to compute LCP on: " << P.size() << ".\n";
+
+        std::ifstream(pairs_path, std::ios::binary).read(reinterpret_cast<char *>(P.data()), bytes);
+        CaPS_SA::LCP_bandwidth_selected(text.data(), n, P);
+    }
 
     return 0;
 }
