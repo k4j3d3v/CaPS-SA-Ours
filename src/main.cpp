@@ -170,16 +170,6 @@ int main(int argc, char* argv[])
     CLI11_PARSE(app, argc, argv);
    
     std::string ext_mem_prefix = ext_mem ? op_path : "";
-
-    std::cerr << "ip_path: " << ip_path << "\n";
-    std::cerr << "op_path: " << op_path << "\n";
-    std::cerr << "data_type: " << data_type << "\n";
-    std::cerr << "output_lcp: " << output_lcp << "\n";
-    std::cerr << "ext_mem: " << ext_mem << "\n";
-    std::cerr << "ext_mem_prefix: " << ext_mem_prefix << "\n";
-    std::cerr << "subproblem_count: " << subproblem_count << "\n";
-    std::cerr << "max_context: " << max_context << "\n";
-
     return construct_and_dump_sa(data_type, ip_path, op_path, ext_mem_prefix, subproblem_count, max_context, ext_mem, output_lcp, collate_extmem_result);
 }
 
