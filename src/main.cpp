@@ -1,36 +1,22 @@
 
 #include "Suffix_Array.hpp"
-#include "parlay/parallel.h"
-#include "ghc/filesystem.hpp"
+#include "Genomic_Text.hpp"
+#include "utility.hpp"
 
-#include <algorithm>
+#include <cstdint>
+#include <cstddef>
+#include <vector>
 #include <string>
+#include <type_traits>
 #include <cstdlib>
 #include <limits>
 #include <fstream>
 #include <iostream>
+#include <cassert>
 
 
-void read_input(const std::string& ip_path, std::string& text)
-{
-    std::error_code ec;
-    const auto file_size = ghc::filesystem::file_size(ip_path, ec);
-
-    if(ec)
-    {
-        std::cerr << ip_path << " : " << ec.message() << "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    text.resize(file_size);
-    std::ifstream input(ip_path);
-    input.read(text.data(), file_size);
-    input.close();
-}
-
-
-template <typename T_idx_>
-void pretty_print(const CaPS_SA::Suffix_Array<T_idx_>& suf_arr, std::ofstream& output)
+template <typename T_seq_, typename T_idx_>
+void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofstream& output)
 {
     const std::size_t n = suf_arr.n();
     for(std::size_t i = 0; i < n; ++i)
@@ -39,55 +25,103 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_idx_>& suf_arr, std::ofstream& o
         output << suf_arr.LCP()[i] << " \n"[i == n - 1];
 }
 
-
-int main(int argc, char* argv[])
+template <typename T_seq_>
+int construct_and_dump_sa_helper(std::vector<T_seq_>& text, const std::string& op_path, const std::string& ext_mem_path, const size_t subproblem_count, const size_t max_context, const bool genomic)
 {
-    // TODO: standardize the API.
-    constexpr auto arg_count = 3;
-    if(argc < arg_count)
-    {
-        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <(optional)-subproblem-count> <(optional)-bounded-context> <(optional)--pretty-print>\n";
-        std::exit(EXIT_FAILURE);
-    }
+    const bool ext_mem = true;  // TODO: take input.
+    constexpr T_seq_ sentinel = std::is_same<T_seq_, char>::value ? '$' : std::numeric_limits<T_seq_>::max();
 
+    // text.pop_back();
+    std::size_t n = text.size();
+    std::cerr << "Text length: " << n << ".\n";
 
-    const std::string ip_path(argv[1]);
-    const std::string op_path(argv[2]);
-    const std::size_t subproblem_count(argc >= 4 ? std::atoi(argv[3]) : 0);
-    const std::size_t max_context(argc >= 5 ? std::atoi(argv[4]) : 0);
-
-    std::string text;
-    read_input(ip_path, text);
-    constexpr char lookup[4] = {'A', 'C', 'T', 'G'};
-    size_t len = text.size();
-    parlay::blocked_for(0, text.size(), 65536, 
-      [&, len](size_t i, size_t start, size_t end) {
-        (void)i;
-        for (size_t j = start; j < std::min(end, len); ++j) {
-          char c = text[j];
-          text[j] = lookup[((std::toupper(c) & 0x6) >> 1)];
-        };
-    });
+    for(std::size_t i = 0; i < 7; ++i)
+        text.push_back(sentinel);
 
     std::ofstream output(op_path);
-
-    std::size_t n = text.length();
-    std::cerr << "Text length: " << n << ".\n";
-    if(n <= std::numeric_limits<uint32_t>::max())
+    const auto construct = [&](auto sz)
     {
-        CaPS_SA::Suffix_Array<uint32_t> suf_arr(text.c_str(), text.length(), subproblem_count, max_context);
-        suf_arr.construct();
-        suf_arr.dump(output);
+        if(!genomic)
+        {
+            CaPS_SA::Suffix_Array<T_seq_, decltype(sz)> suf_arr(text.data(), sz, ext_mem, ext_mem_path, subproblem_count, max_context);
+            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
+            suf_arr.dump(output);
+        }
+        else
+        {
+            assert((std::is_same<T_seq_, char>::value));
+
+            const CaPS_SA::Genomic_Text G(reinterpret_cast<const char*>(text.data()), sz);
+            CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, decltype(sz)> suf_arr(&G, sz, ext_mem, ext_mem_path, subproblem_count, max_context);
+            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
+            suf_arr.dump(output);
+        }
+    };
+
+    n <= std::numeric_limits<uint32_t>::max() ? construct(static_cast<uint32_t>(n)) : construct(static_cast<uint64_t>(n));
+
+    output.close();
+    return 0;
+}
+
+int construct_and_dump_sa(std::string input_t, const std::string& ip_path, const std::string& op_path, const std::string& ext_mem_path, size_t subproblem_count, size_t max_context)
+{
+    if(input_t == "t" || input_t == "g")
+    {
+        std::vector<char> text;
+        CaPS_SA::read_input<char>(ip_path, text);
+        construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context, input_t == "g");
     }
     else
     {
-        CaPS_SA::Suffix_Array<uint64_t> suf_arr(text.c_str(), text.length(), subproblem_count, max_context);
-        suf_arr.construct();
-        suf_arr.dump(output);
+        std::ifstream input(ip_path);
+        if (!input) {
+            std::cerr << ip_path << " : could not be opened\n";
+            std::exit(EXIT_FAILURE);
+        }
+        uint64_t length;
+        uint64_t max_char;
+        input.read(reinterpret_cast<char*>(&length), sizeof(length));
+        input.read(reinterpret_cast<char*>(&max_char), sizeof(max_char));
+
+        if (max_char >= std::numeric_limits<int32_t>::max()) {
+            std::vector<uint64_t> text;
+            text.resize(length);
+            input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint64_t));
+            construct_and_dump_sa_helper<uint64_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false);
+            input.close();
+        } else {
+            std::vector<uint32_t> text;
+            text.resize(length);
+            input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint32_t));
+            construct_and_dump_sa_helper<uint32_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false);
+            input.close();
+        }
     }
-
-    output.close();
-
-
     return 0;
 }
+
+int main(int argc, char* argv[])
+{
+#ifndef NDEBUG
+    std::cout << "Warning: Executing in Debug Mode.\n";
+#endif
+    // TODO: standardize the API.
+    constexpr auto arg_count = 4;
+    if(argc < arg_count)
+    {
+        std::cerr << "Usage: CaPS_SA <input_path> <output_path> <work_path_prefix> <(optional) input type [default: 't']> <(optional)-subproblem-count> <(optional)-bounded-context>>\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    const std::string ip_path(argv[1]);
+    const std::string op_path(argv[2]);
+    const std::string ext_mem_path(argv[3]);
+    const std::string data_type(argc >= 5 ? argv[4] : "t");
+    const std::size_t subproblem_count(argc >= 6 ? std::atoi(argv[4]) : 0);
+    const std::size_t max_context(argc >= 7 ? std::atoi(argv[5]) : 0);
+
+    return construct_and_dump_sa(data_type, ip_path, op_path, ext_mem_path, subproblem_count, max_context);
+}
+
+

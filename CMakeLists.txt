@@ -1,6 +1,5 @@
 
 # =============================================================================
-
 # Minimimum CMake version.
 cmake_minimum_required(VERSION 3.14)
 
@@ -21,6 +20,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 if(ASAN OR UBSAN)
+    set(CLANG TRUE)
+endif()
+
+if(CLANG)
     set(CMAKE_C_COMPILER clang)
     set(CMAKE_CXX_COMPILER clang++)
     # set(CMAKE_LINKER_TYPE LLD)
@@ -66,9 +69,23 @@ if(UBSAN)
     list(APPEND LINK_FLAGS ${UBSAN_LINK_FLAGS} ${UBSAN_FLAGS})
 endif()
 
+if(DEBUG_INFO)
+    list(APPEND COMPILE_FLAGS ${DEBUG_FLAGS})
+endif()
+
 
 # Add the required preprocessor definitions (`#define`s) to pass on.
 add_compile_definitions(CMAKE_EXPORT_COMPILE_COMMANDS)  # For better `clangd` scanning.
+
+
+# Set other compile-time definitions.
+execute_process(
+    COMMAND getconf LEVEL1_DCACHE_LINESIZE
+    COMMAND tr -d '\n'
+    OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
+)
+
+add_compile_definitions(L1_CACHE_LINE_SIZE=${L1_CACHE_LINE_SIZE})
 
 
 # Determine the thread library of the system.
