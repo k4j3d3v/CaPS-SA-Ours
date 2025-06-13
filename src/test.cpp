@@ -159,6 +159,7 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
 
         std::ifstream is(pairs_path, std::ios::binary);
 
+        std::cerr << "\n";
         uint64_t pairs_read = 0;
         while(pairs_read < pairs_c)
         {
@@ -174,11 +175,13 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
 
             const auto t_1 = CaPS_SA::now();
             time += duration(t_1 - t_0);
+
+            std::cerr << "\rProcessed " << pairs_read << " pairs.";
         }
 
         is.close();
 
-        std::cerr << "LCP-bandwidth on selected pairs on raw text:    " << ((bytes_scanned / time) / (1024.0 * 1024.0)) << " MB/s.\n";
+        std::cerr << "\n LCP-bandwidth on selected pairs on raw text:    " << ((bytes_scanned / time) / (1024.0 * 1024.0)) << " MB/s.\n";
     }
 // */
 
@@ -190,6 +193,7 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
 
         std::ifstream is(pairs_path, std::ios::binary);
 
+        std::cerr << "\n";
         uint64_t pairs_read = 0;
         while(pairs_read < pairs_c)
         {
@@ -205,11 +209,13 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
 
             const auto t_1 = CaPS_SA::now();
             time += duration(t_1 - t_0);
+
+            std::cerr << "\rProcessed " << pairs_read << " pairs.";
         }
 
         is.close();
 
-        std::cerr << "LCP-bandwidth on selected pairs on packed text: " << ((bases_scanned / time) / (1024.0 * 1024.0)) << " Mbases/s.\n";
+        std::cerr << "\n LCP-bandwidth on selected pairs on packed text: " << ((bases_scanned / time) / (1024.0 * 1024.0)) << " Mbases/s.\n";
     }
 // */
 }
