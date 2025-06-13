@@ -79,11 +79,31 @@ add_compile_definitions(CMAKE_EXPORT_COMPILE_COMMANDS)  # For better `clangd` sc
 
 
 # Set other compile-time definitions.
-execute_process(
-    COMMAND getconf LEVEL1_DCACHE_LINESIZE
-    COMMAND tr -d '\n'
-    OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
-)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    execute_process(
+        COMMAND getconf LEVEL1_DCACHE_LINESIZE
+        COMMAND tr -d '\n'
+        OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        execute_process(
+            COMMAND sysctl machdep.cpu.cache.linesize
+            COMMAND awk "{print $2}"
+            COMMAND tr -d '\n'
+            OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
+        )
+    elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
+        execute_process(
+            COMMAND sysctl hw.cachelinesize
+            COMMAND awk "{print $2}"
+            COMMAND tr -d '\n'
+            OUTPUT_VARIABLE L1_CACHE_LINE_SIZE
+        )
+    else()
+        message(FATAL_ERROR "Unable to identify Apple Silicon processor architecture")
+    endif()
+endif()
 
 add_compile_definitions(L1_CACHE_LINE_SIZE=${L1_CACHE_LINE_SIZE})
 
