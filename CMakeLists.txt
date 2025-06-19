@@ -34,9 +34,6 @@ endif()
 set(COMPILE_FLAGS "")
 set(LINK_FLAGS "")
 
-# Specify the warnings and the extra optimization flags to the compiler for the target library.
-list(APPEND COMPILE_FLAGS ${WARNING_FLAGS} ${SUPPRESS_WARNING_FLAGS} ${OPTIMIZE_FLAGS})
-
 if(ASAN)
     list(APPEND COMPILE_FLAGS ${ASAN_FLAGS} ${DEBUG_FLAGS})
     list(APPEND LINK_FLAGS ${ASAN_LINK_FLAGS} ${ASAN_FLAGS})
@@ -162,11 +159,20 @@ set(UBSAN_FLAGS -fsanitize=undefined
                 -fsanitize=implicit-conversion -fsanitize=local-bounds -fsanitize=nullability)
 # set(UBSAN_LINK_FLAGS -fuse-ld=lld)
 
-set(OPTIMIZE_FLAGS -Ofast -funroll-loops -march=native)
+set(OPTIMIZE_FLAGS -Ofast)
+
 # Extra optimization flags not associated to the `-O` levels.
 if (ARCHITECTURE STREQUAL "x86_64")
   list(APPEND OPTIMIZE_FLAGS -mavx2)
 endif()
+
+list(APPEND OPTIMIZE_FLAGS -funroll-loops -march=native)
+
+message("OPTIMIZE FLAGS = ${OPTIMIZE_FLAGS}")
+
+# Specify the warnings and the extra optimization flags to the compiler for the target library.
+list(APPEND COMPILE_FLAGS ${WARNING_FLAGS} ${SUPPRESS_WARNING_FLAGS} ${OPTIMIZE_FLAGS})
+
 
 
 # Determine the thread library of the system.
