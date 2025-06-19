@@ -134,6 +134,10 @@ int main(int argc, char* argv[])
 #ifndef NDEBUG
     std::cout << "Warning: Executing in Debug Mode.\n";
 #endif
+#ifdef USE_AVX_512
+    std::cerr << "Using AVX-512.\n";
+#endif
+
     CLI::App app{"CaPS-SA driver"};
     argv = app.ensure_utf8(argv);
 
