@@ -16,7 +16,7 @@ namespace CaPS_SA
 {
 
 template <typename T_seq_, typename T_idx_>
-Suffix_Array<T_seq_, T_idx_>::Suffix_Array(const T_seq_* const T, const idx_t n, const bool ext_mem, const std::string& ext_mem_path, const idx_t subproblem_count, const idx_t max_context):
+Suffix_Array<T_seq_, T_idx_>::Suffix_Array(const T_seq_* const T, const idx_t n, const bool ext_mem, const std::string& ext_mem_path, const idx_t subproblem_count, const idx_t max_context, const bool output_lcp):
     T_(T),
     n_(n),
     p_(std::min(subproblem_count > 0 ? subproblem_count : default_subproblem_count, n / 16)),   // TODO: fix subproblem-count for small `n`.
@@ -32,7 +32,10 @@ Suffix_Array<T_seq_, T_idx_>::Suffix_Array(const T_seq_* const T, const idx_t n,
     pivot_(nullptr),
     part_size_scan_(nullptr),
     part_ruler_(nullptr),
-    op_lcp(false)   // TODO: take input
+    op_lcp(output_lcp),   
+    removed_lcp_partitions(false),
+    removed_extmem_partitions(false),
+    constructed(false)
 {
     assert(n_ >= 16);   // TODO: fix subproblem-count for small `n`.
 
@@ -673,6 +676,31 @@ void Suffix_Array<T_seq_, T_idx_>::compute_partition_boundary_lcp()
     std::cerr << "Computed the LCPs at the partition boundaries. Time taken: " << duration(t_e - t_s) << " seconds.\n";
 }
 
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::remove_extmem_partitions()
+{
+    if(!ext_mem_ctr_) {
+        std::cerr << "The remove_extmem_partitions() member has no effect when not using external memory construction. Please ensure you intended to call this member.\n";
+        return;
+    } 
+    
+    if(!constructed) {
+        std::cerr << "The remove_extmem_partitions() member cannot be called on a Suffix_Array object that has not yet been constructed. Please ensure you intended to call this member here.\n";
+        return;
+    }
+    if(!removed_extmem_partitions) {
+        const auto remove_bucket = [this](const idx_t p_id){ 
+            subproblem_space[p_id].unwrap().remove_SA(); 
+            if(!removed_lcp_partitions) {
+                subproblem_space[p_id].unwrap().remove_LCP(); 
+            }
+        };
+        parlay::parallel_for(0, p_, remove_bucket, 1);
+        removed_extmem_partitions = true;
+    } else {
+        std::cerr << "External memory partitions have already been removed. Please check why you may be calling this member more than once.\n";
+    }
+}
 
 template <typename T_seq_, typename T_idx_>
 void Suffix_Array<T_seq_, T_idx_>::clean_up()
@@ -693,11 +721,17 @@ void Suffix_Array<T_seq_, T_idx_>::clean_up()
             w_buf[w_id].unwrap().free();
 
         deallocate(pivot_);
-
-        const auto remove_bucket = [this](const idx_t p_id){ subproblem_space[p_id].unwrap().remove(); };
-        parlay::parallel_for(0, p_, remove_bucket, 1);
+        const auto clean_bucket = [this](const idx_t p_id){ 
+            if(!op_lcp) {
+                subproblem_space[p_id].unwrap().remove_LCP();
+            }
+            subproblem_space[p_id].unwrap().clear(); 
+        };
+        parlay::parallel_for(0, p_, clean_bucket, 1);
+        removed_lcp_partitions = !op_lcp;
     }
-
+    
+    constructed = true;
     const auto t_e = now();
     std::cerr << "Released the temporary data structures. Time taken: " << duration(t_e - t_s) << " seconds.\n";
 }
@@ -757,6 +791,7 @@ void Suffix_Array<T_seq_, T_idx_>::construct()
 
     clean_up();
 
+    constructed = true;
     const auto t_end = now();
     std::cerr << "Constructed the suffix array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
 }
@@ -780,6 +815,7 @@ void Suffix_Array<T_seq_, T_idx_>::construct_ext_mem()
 
     clean_up();
 
+    constructed = true;
     const auto t_end = now();
     std::cerr << "Constructed the suffix array and the LCP array. Time taken: " << duration(t_end - t_start) << " seconds.\n";
 }
@@ -817,7 +853,7 @@ const T_idx_* Suffix_Array<T_seq_, T_idx_>::SA()
 
 
 template <typename T_seq_, typename T_idx_>
-void Suffix_Array<T_seq_, T_idx_>::dump(std::ofstream& output) const
+void Suffix_Array<T_seq_, T_idx_>::dump(std::ofstream& output) const 
 {
     const auto t_start = now();
 

@@ -73,6 +73,9 @@ private:
     std::atomic_uint64_t solved_;   // Progress tracker—number of subproblems solved.
 
     const bool op_lcp;  // Whether to output the LCP-array.
+    bool removed_lcp_partitions;  // Whether the LCP buckets have already been cleared or not.
+    bool removed_extmem_partitions; // Whether the remove_extmem_partitions() function has alredy been called or not.
+    bool constructed; // If construction has completed.
 
     static constexpr idx_t default_subproblem_count = 8192; // Default subproblem-count to use in construction.
     static constexpr idx_t nested_par_grain_size = (1lu << 13); // Granularity for nested parallelism to kick in.
@@ -204,7 +207,7 @@ public:
     // construction problem into can be provided with `subproblem_count`, and
     // the maximum prefix-context length for the suffixes can be bounded by
     // `max_context`.
-    Suffix_Array(const T_seq_* T, idx_t n, bool ext_mem = false, const std::string& ext_mem_path = ".", idx_t subproblem_count = 0, idx_t max_context = 0);
+    Suffix_Array(const T_seq_* T, idx_t n, bool ext_mem = false, const std::string& ext_mem_path = ".", idx_t subproblem_count = 0, idx_t max_context = 0, const bool output_lcp = false);
 
     Suffix_Array(const Suffix_Array&) = delete;
     Suffix_Array& operator=(const Suffix_Array&) = delete;
@@ -234,6 +237,9 @@ public:
 
     // Constructs the SA and the LCP-array using external memory.
     void construct_ext_mem();
+
+    // Removes external memory buckets (SA and LCP (if requested) chunks).
+    void remove_extmem_partitions();
 
     // Dumps the SA and the LCP-array into the stream `output`.
     void dump(std::ofstream& output) const;
@@ -305,7 +311,11 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
 
     void close() { SA_bucket.close(), LCP_bucket.close(); }
 
-    void remove() { SA_bucket.remove(), LCP_bucket.remove(), sz_bucket.clear(); }
+    void clear() { sz_bucket.clear(); }
+  
+    void remove_SA() { SA_bucket.remove(); }
+
+    void remove_LCP() { LCP_bucket.remove(); }
 };
 
 
