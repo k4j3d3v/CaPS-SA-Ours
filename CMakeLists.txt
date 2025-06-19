@@ -128,6 +128,11 @@ if(USE_AVX_512)
     add_compile_definitions(USE_AVX_512)
 endif()
 
+if(CAPS_SA_QUIET)
+    message("Compiling CaPS-SA with silenced logging.")
+    add_compile_definitions(CAPS_SA_QUIET)
+endif()
+
 
 if(OS_NAME STREQUAL "Linux")
     execute_process(

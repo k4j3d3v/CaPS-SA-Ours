@@ -15,7 +15,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <cassert>
-
+#include "utility.hpp"
 
 namespace CaPS_SA
 {
@@ -202,8 +202,9 @@ inline int Ext_Mem_Bucket<T_>::checked_file_op(const int code, const char* const
 {
     if(code == -1)
     {
-        std::cerr << "Error " << op << " external-memory bucket at " << file_path << ". Aborting.\n";
-        perror("Error");
+        ((void)op);
+        CAPS_SA_LOG(std::cerr << "Error " << op << " external-memory bucket at " << file_path << ". Aborting.\n");
+        CAPS_SA_LOG(perror("Error"));
         std::exit(EXIT_FAILURE);
     }
 
