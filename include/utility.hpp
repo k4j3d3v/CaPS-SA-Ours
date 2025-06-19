@@ -2,7 +2,11 @@
 #ifndef CAPS_SA_UTILITY_HPP
 #define CAPS_SA_UTILITY_HPP
 
-
+#ifdef CAPSSA_QUIET
+#define CAPS_SA_LOG(STATEMENT) ((void)0)
+#else
+#define CAPS_SA_LOG(STATEMENT) (STATEMENT)
+#endif
 
 #include <cstddef>
 #include <utility>
@@ -178,7 +182,7 @@ void read_input(const std::string& ip_path, std::vector<T_seq_>& text)
 
     if(ec)
     {
-        std::cerr << ip_path << " : " << ec.message() << "\n";
+        CAPS_SA_LOG(std::cerr << ip_path << " : " << ec.message() << "\n");
         std::exit(EXIT_FAILURE);
     }
 

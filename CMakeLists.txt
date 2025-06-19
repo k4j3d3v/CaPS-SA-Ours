@@ -139,6 +139,11 @@ else()
     set(NEED_SIMDE FALSE)
 endif()
 
+if(CAPSSA_QUIET)
+    message("Compiling CaPS-SA with silenced logging.")
+    add_compile_definitions(CAPSSA_QUIET)
+endif()
+
 ### set compiler flags based on what we learned about the machine!
 # Warning flags.
 set(WARNING_FLAGS -Wall -Wextra -Wpedantic)
