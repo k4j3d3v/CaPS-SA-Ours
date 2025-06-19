@@ -145,7 +145,7 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
 {
     typedef std::pair<T_idx_, T_idx_> pair_t;
 
-    constexpr std::size_t batch_sz = 256 * 1024 * 1024 / sizeof(std::pair<T_idx_, T_idx_>); // 256 MB.
+    constexpr uint64_t batch_sz = 256 * 1024 * 1024 / sizeof(std::pair<T_idx_, T_idx_>); // 256 MB.
     const uint64_t pairs_c = std::filesystem::file_size(pairs_path) / sizeof(pair_t);
     std::vector<pair_t> pairs(batch_sz);
 

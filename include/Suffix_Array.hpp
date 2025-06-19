@@ -3,6 +3,11 @@
 #define THEMIS_SUFFIX_ARRAY_HPP
 
 
+#ifdef USE_SIMDE
+    #include "x86/avx2.h"
+#else
+    #include <immintrin.h>
+#endif
 
 #include "Ext_Mem_Bucket.hpp"
 #include "Genomic_Text.hpp"
@@ -18,7 +23,6 @@
 #include <type_traits>
 #include <cstdlib>
 #include <cassert>
-#include <immintrin.h>
 
 // =============================================================================
 
@@ -347,7 +351,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
     }
 }
 
-
+#ifndef USE_SIMDE
 template <typename T_seq_, typename T_idx_>
 template <std::size_t N>
 inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, const char* const y)
@@ -366,7 +370,28 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
         return 32 + LCP_unrolled<N - 1>(x + 32, y + 32);
     }
 }
+#else
 
+template <typename T_seq_, typename T_idx_>
+template <std::size_t N>
+inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, const char* const y)
+{
+    if constexpr(N == 0)
+        return 0;
+    else
+    {
+        const auto v1 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(x));
+        const auto v2 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(y));
+        const auto cmp = simde_mm256_cmpeq_epi8(v1, v2);
+        const auto mask = static_cast<uint32_t>(simde_mm256_movemask_epi8(cmp));
+        if(mask != 0xFFFFFFFF)
+            return __builtin_ctz(~mask);
+
+        return 32 + LCP_unrolled<N - 1>(x + 32, y + 32);
+    }
+}
+
+#endif // USE_SIMDE
 
 template <typename T_seq_, typename T_idx_>
 inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const T_seq_* const x, const T_seq_* const y, const idx_t ctx)
