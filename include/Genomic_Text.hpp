@@ -29,6 +29,11 @@ class Genomic_Text
     // the highest byte.
     __m256i load(std::size_t i) const;
 
+    // Returns the 252-nucleobase block (63 bytes) from onward the `i`'th
+    // nucleobase, in 256-bits little-endian. No guarantees are provided for
+    // the highest byte.
+    __m512i load_512(std::size_t i) const;
+
     // Returns the 29-nucleobase block (8 bytes) from onward the `i`'th
     // nucleobase, in 64-bits little-endian. The highest 6-bits are zeroed.
     uint64_t load_word(std::size_t i) const;
@@ -98,6 +103,30 @@ inline __m256i Genomic_Text::load(const std::size_t i) const
 }
 
 
+inline __m512i Genomic_Text::load_512(const std::size_t i) const
+{
+    assert(i + 252 <= n_);
+
+    const auto base = i / 4;    // Base word's index.
+    const auto blk = _mm512_loadu_si512(B.data() + base);   // 512-bits block from the base word.
+
+    const auto unwanted_trail = i & 3;  // Number of unwanted bases (2-bits) trailing in the base word.
+    if(!unwanted_trail)
+        return blk;
+
+    constexpr __m512i shift_idx = {1, 2, 3, 4, 5, 6, 7, 0};
+
+    const auto to_clear_trail = _mm512_set1_epi64(unwanted_trail * 2);  // Number of trailing bits to clear from each word.
+    const auto cleared = _mm512_srlv_epi64(blk, to_clear_trail);    // Trailing bits cleared from each 64-bit word.
+    const auto r_shifted = _mm512_permutexvar_epi64(shift_idx, blk);    // Words right-shifted by 1 word. The top word is don't-care.
+    const auto to_clear_lead = _mm512_set1_epi64((32 - unwanted_trail) * 2);    // Number of leading bits to clear from each word of the right-shifted block.
+    const auto lost_bits = _mm512_sllv_epi64(r_shifted, to_clear_lead); // Bits lost due to the inability of whole register-wise right-shift during clearance of unwanted-bits.
+    const auto restored = _mm512_or_si512(cleared, lost_bits);  // Restored lost trailing bits from words 1, 2, 3, 4, 5, 6, and 7.
+
+    return restored;
+}
+
+
 inline uint64_t Genomic_Text::load_word(const std::size_t i) const
 {
     assert(i + 29 <= n_);
@@ -118,6 +147,7 @@ inline std::size_t Genomic_Text::LCP_unrolled(const std::size_t x, const std::si
         return 0;
     else
     {
+#ifndef USE_AVX_512
         const auto X = load(x);
         const auto Y = load(y);
 
@@ -135,6 +165,25 @@ inline std::size_t Genomic_Text::LCP_unrolled(const std::size_t x, const std::si
         }
 
         return 124 + LCP_unrolled<N - 1>(x + 124, y + 124);
+#else
+        const auto X = load_512(x);
+        const auto Y = load_512(y);
+
+        const auto eq_mask = _mm512_cmpeq_epi8_mask(X, Y);
+        const auto neq_mask = ~eq_mask & 0x7FFF'FFFF'FFFF'FFFFull;  // Top byte is degenerate in a block.
+        if(neq_mask)
+        {
+            auto const X_b = reinterpret_cast<const unsigned char*>(&X);
+            auto const Y_b = reinterpret_cast<const unsigned char*>(&Y);
+            const auto bytes_eq = __builtin_ctzll(neq_mask);
+            assert(X_b[bytes_eq] != Y_b[bytes_eq]);
+
+            const auto bits_eq = (bytes_eq << 3) + (__builtin_ctz(X_b[bytes_eq] ^ Y_b[bytes_eq]));
+            return bits_eq >> 1;
+        }
+
+        return 252 + LCP_unrolled<N - 1>(x + 252, y + 252);
+#endif
     }
 }
 
@@ -154,11 +203,16 @@ inline std::size_t Genomic_Text::LCP(const std::size_t x, const std::size_t y, c
     }
     else
     {
-        while((ctx - lcp) >= N * 124)
+#ifndef USE_AVX_512
+        constexpr std::size_t stride = 124;
+#else
+        constexpr std::size_t stride = 252;
+#endif
+        while((ctx - lcp) >= N * stride)
         {
             const auto l = LCP_unrolled<N>(x + lcp, y + lcp);
             lcp += l;
-            if(l < N * 124)
+            if(l < N * stride)
                 return lcp;
         }
 
