@@ -18,7 +18,12 @@
 #include <type_traits>
 #include <cstdlib>
 #include <cassert>
+
+#ifdef NATIVE_SIMD
 #include <immintrin.h>
+#else
+#include "x86/avx2.h"
+#endif
 
 // =============================================================================
 
@@ -312,7 +317,7 @@ struct Suffix_Array<T_seq_, T_idx_>::Subproblem_Ext_Mem
     void close() { SA_bucket.close(), LCP_bucket.close(); }
 
     void clear() { sz_bucket.clear(); }
-  
+
     void remove_SA() { SA_bucket.remove(); }
 
     void remove_LCP() { LCP_bucket.remove(); }
@@ -361,6 +366,7 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
         return 0;
     else
     {
+#ifdef NATIVE_SIMD
 #ifndef USE_AVX_512
         const auto v1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(x));
         const auto v2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(y));
@@ -378,6 +384,16 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
             return __builtin_ctzll(~mask);
 
         return 64 + LCP_unrolled<N - 1>(x + 64, y + 64);
+#endif
+#else
+        const auto v1 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(x));
+        const auto v2 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(y));
+        const auto cmp = simde_mm256_cmpeq_epi8(v1, v2);
+        const auto mask = static_cast<uint32_t>(simde_mm256_movemask_epi8(cmp));
+        if(mask != 0xFFFF'FFFF)
+            return __builtin_ctz(~mask);
+
+        return 32 + LCP_unrolled<N - 1>(x + 32, y + 32);
 #endif
     }
 }

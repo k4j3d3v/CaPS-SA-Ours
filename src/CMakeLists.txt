@@ -13,7 +13,7 @@ add_library(core STATIC ${PROJECT_SRC})
 
 
 # Include paths for the compiler.
-set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
+set(INCLUDE_DIR ${CAPS_SA_LIB_PROJECT_PATH}/include)
 target_include_directories(core PUBLIC ${INCLUDE_DIR} ${EXT_INCLUDE})
 
 
@@ -22,8 +22,11 @@ add_executable(${PROJECT_NAME} main.cpp)
 add_executable(test test.cpp)
 
 
-# Add dependency of the core to parlaylib.
+# Add dependencies of the core.
 add_dependencies(core prj_parlaylib)
+if(USE_SIMDE)
+    add_dependencies(core prj_simde)
+endif()
 
 
 # Compiler flags.
