@@ -141,47 +141,58 @@ void LCP_bandwidth_thresholded(const char* const T, const std::size_t n, const s
 
 
 template <typename T_idx_>
-void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std::string pairs_path)
+void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std::string pairs_path_pref, const std::size_t file_c)
 {
     typedef std::pair<T_idx_, T_idx_> pair_t;
 
-    constexpr uint64_t batch_sz = 256 * 1024 * 1024 / sizeof(std::pair<T_idx_, T_idx_>);    // 256 MB.
-    const uint64_t pairs_c = std::filesystem::file_size(pairs_path) / sizeof(pair_t);
-    std::vector<pair_t> pairs(batch_sz);
+    constexpr uint64_t batch_sz = 256 * 1024 * 1024 / sizeof(std::pair<T_idx_, T_idx_>); // 256 MB.
+
+    const auto file_name = [&](const std::size_t w){ return pairs_path_pref + "." + std::to_string(w); };
+
+    uint64_t pairs_c = 0;
+    for(std::size_t w = 0; w < file_c; ++w)
+        pairs_c += std::filesystem::file_size(file_name(w)) / sizeof(pair_t);
 
     std::cerr << "#Pairs to compute LCP on: " << pairs_c << ".\n";
+
+    std::vector<pair_t> pairs(batch_sz);
 
 // /*
     {
         const Suffix_Array<char, T_idx_> SA(T, n);
         uint64_t bytes_scanned = 0;
         double time = 0;
-
-        std::ifstream is(pairs_path, std::ios::binary);
+        uint64_t pairs_processed = 0;
 
         std::cerr << "\n";
-        uint64_t pairs_read = 0;
-        while(pairs_read < pairs_c)
+        for(std::size_t w_id = 0; w_id < file_c; ++w_id)
         {
-            const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
-            pairs.resize(to_read);
-            is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
-            pairs_read += to_read;
+            std::ifstream is(file_name(w_id), std::ios::binary);
+            const uint64_t pairs_c = std::filesystem::file_size(file_name(w_id)) / sizeof(pair_t);
 
-            const auto t_0 = CaPS_SA::now();
+            uint64_t pairs_read = 0;
+            while(pairs_read < pairs_c)
+            {
+                const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
+                pairs.resize(to_read);
+                is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
+                pairs_read += to_read;
 
-            for(const auto& p : pairs)
-                bytes_scanned += (SA.LCP(p.first, p.second, n - p.second) + 1);
+                const auto t_0 = CaPS_SA::now();
 
-            const auto t_1 = CaPS_SA::now();
-            time += duration(t_1 - t_0);
+                for(const auto& p : pairs)
+                    bytes_scanned += (SA.LCP(p.first, p.second, n - p.second) + 1);
 
-            std::cerr << "\rProcessed " << pairs_read << " pairs.";
-        }
+                const auto t_1 = CaPS_SA::now();
+                time += duration(t_1 - t_0);
+            }
 
-        is.close();
+            is.close();
+            pairs_processed += pairs_c;
+            std::cerr << "\rProcessed " << pairs_processed << " pairs.";
+        };
 
-        std::cerr << "\n LCP-bandwidth on selected pairs on raw text:    " << ((bytes_scanned / time) / (1024.0 * 1024.0)) << " MB/s.\n";
+        std::cerr << "\nLCP-bandwidth on selected pairs on raw text:    " << ((bytes_scanned / time) / (1024.0 * 1024.0)) << " MB/s.\n";
     }
 // */
 
@@ -190,32 +201,145 @@ void LCP_bandwidth_selected(const char* const T, const std::size_t n, const std:
         const Genomic_Text G(T, n);
         uint64_t bases_scanned = 0;
         double time = 0;
-
-        std::ifstream is(pairs_path, std::ios::binary);
+        uint64_t pairs_processed = 0;
 
         std::cerr << "\n";
-        uint64_t pairs_read = 0;
-        while(pairs_read < pairs_c)
+        for(std::size_t w_id = 0; w_id < file_c; ++w_id)
         {
-            const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
-            pairs.resize(to_read);
-            is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
-            pairs_read += to_read;
+            std::ifstream is(file_name(w_id), std::ios::binary);
+            const uint64_t pairs_c = std::filesystem::file_size(file_name(w_id)) / sizeof(pair_t);
 
-            const auto t_0 = CaPS_SA::now();
+            uint64_t pairs_read = 0;
+            while(pairs_read < pairs_c)
+            {
+                const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
+                pairs.resize(to_read);
+                is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
+                pairs_read += to_read;
 
-            for(const auto& p : pairs)
-                bases_scanned += (G.LCP(p.first, p.second, n - p.second) + 1);
+                const auto t_0 = CaPS_SA::now();
 
-            const auto t_1 = CaPS_SA::now();
-            time += duration(t_1 - t_0);
+                for(const auto& p : pairs)
+                    bases_scanned += (G.LCP(p.first, p.second, n - p.second) + 1);
 
-            std::cerr << "\rProcessed " << pairs_read << " pairs.";
-        }
+                const auto t_1 = CaPS_SA::now();
+                time += duration(t_1 - t_0);
+            }
 
-        is.close();
+            is.close();
+            pairs_processed += pairs_c;
+            std::cerr << "\rProcessed " << pairs_processed << " pairs.";
+        };
 
-        std::cerr << "\n LCP-bandwidth on selected pairs on packed text: " << ((bases_scanned / time) / (1024.0 * 1024.0)) << " Mbases/s.\n";
+        std::cerr << "\nLCP-bandwidth on selected pairs on packed text: " << ((bases_scanned / time) / (1024.0 * 1024.0)) << " Mbases/s.\n";
+    }
+// */
+}
+
+
+template <typename T_idx_>
+void LCP_bandwidth_selected_par(const char* const T, const std::size_t n, const std::string pairs_path_pref, const std::size_t file_c)
+{
+    typedef std::pair<T_idx_, T_idx_> pair_t;
+
+    constexpr uint64_t batch_sz = 256 * 1024 * 1024 / sizeof(std::pair<T_idx_, T_idx_>); // 256 MB.
+
+    const auto file_name = [&](const std::size_t w){ return pairs_path_pref + "." + std::to_string(w); };
+
+    const auto sum = [&](const auto& v)
+    {
+        typename std::remove_const<typename std::remove_reference<decltype(v[0].unwrap())>::type>::type s = 0;
+        std::for_each(v.cbegin(), v.cend(), [&](auto& e){ s += e.unwrap(); });
+        return s;
+    };
+
+    uint64_t pairs_c = 0;
+    for(std::size_t w = 0; w < file_c; ++w)
+        pairs_c += std::filesystem::file_size(file_name(w)) / sizeof(pair_t);
+
+    std::cerr << "#Pairs to compute LCP on: " << pairs_c << ".\n";
+
+    std::vector<Padded<std::vector<pair_t>>> P(parlay::num_workers());
+
+// /*
+    {
+        const Suffix_Array<char, T_idx_> SA(T, n);
+        std::vector<Padded<uint64_t>> bytes_scanned(parlay::num_workers(), 0);
+        std::vector<Padded<double>> time(parlay::num_workers(), 0);
+        std::atomic_uint64_t pairs_processed = 0;
+
+        std::cerr << "\n";
+        parlay::parallel_for(0, file_c, [&](const std::size_t f_id)
+        {
+            const auto w_id = parlay::worker_id();
+            std::ifstream is(file_name(f_id), std::ios::binary);
+            const uint64_t pairs_c = std::filesystem::file_size(file_name(f_id)) / sizeof(pair_t);
+            auto& pairs = P[w_id].unwrap();
+
+            uint64_t pairs_read = 0;
+            while(pairs_read < pairs_c)
+            {
+                const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
+                pairs.resize(to_read);
+                is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
+                pairs_read += to_read;
+
+                const auto t_0 = CaPS_SA::now();
+
+                for(const auto& p : pairs)
+                    bytes_scanned[w_id].unwrap() += (SA.LCP(p.first, p.second, n - p.second) + 1);
+
+                const auto t_1 = CaPS_SA::now();
+                time[w_id].unwrap() += duration(t_1 - t_0);
+            }
+
+            is.close();
+            pairs_processed += pairs_c;
+            std::cerr << "\rProcessed " << pairs_processed << " pairs.";
+        }, 1);
+
+        std::cerr << "\nLCP-bandwidth on selected pairs on raw text:    " << ((sum(bytes_scanned) / sum(time)) / (1024.0 * 1024.0)) << " MB/s.\n";
+    }
+// */
+
+// /*
+    {
+        const Genomic_Text G(T, n);
+        std::vector<Padded<uint64_t>> bases_scanned(parlay::num_workers(), 0);
+        std::vector<Padded<double>> time(parlay::num_workers(), 0);
+        std::atomic_uint64_t pairs_processed = 0;
+
+        std::cerr << "\n";
+        parlay::parallel_for(0, parlay::num_workers(), [&](const std::size_t f_id)
+        {
+            const auto w_id = parlay::worker_id();
+            std::ifstream is(file_name(f_id), std::ios::binary);
+            const uint64_t pairs_c = std::filesystem::file_size(file_name(f_id)) / sizeof(pair_t);
+            auto& pairs = P[w_id].unwrap();
+
+            uint64_t pairs_read = 0;
+            while(pairs_read < pairs_c)
+            {
+                const auto to_read = std::min(batch_sz, pairs_c - pairs_read);
+                pairs.resize(to_read);
+                is.read(reinterpret_cast<char*>(pairs.data()), to_read * sizeof(pair_t));
+                pairs_read += to_read;
+
+                const auto t_0 = CaPS_SA::now();
+
+                for(const auto& p : pairs)
+                    bases_scanned[w_id].unwrap() += (G.LCP(p.first, p.second, n - p.second) + 1);
+
+                const auto t_1 = CaPS_SA::now();
+                time[w_id].unwrap() += duration(t_1 - t_0);
+            }
+
+            is.close();
+            pairs_processed += pairs_c;
+            std::cerr << "\rProcessed " << pairs_processed << " pairs.";
+        }, 1);
+
+        std::cerr << "\nLCP-bandwidth on selected pairs on packed text: " << ((sum(bases_scanned) / sum(time)) / (1024.0 * 1024.0)) << " Mbases/s.\n";
     }
 // */
 }
@@ -258,7 +382,11 @@ int main(int argc, char* argv[])
     if(argc >= 3)
     {
         const std::string pairs_path(argv[2]);
-        CaPS_SA::LCP_bandwidth_selected<uint32_t>(text.data(), n, argv[2]);
+        const std::size_t file_c = std::atoi(argv[3]);
+        // CaPS_SA::LCP_bandwidth_selected<uint32_t>(text.data(), n, pairs_path, file_c);
+
+        std::cerr << "In parallel:\n\n";
+        CaPS_SA::LCP_bandwidth_selected_par<uint32_t>(text.data(), n, pairs_path, file_c);
     }
 
     return 0;

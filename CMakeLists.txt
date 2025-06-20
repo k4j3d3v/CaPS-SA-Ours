@@ -77,6 +77,10 @@ endif()
 # Add the required preprocessor definitions (`#define`s) to pass on.
 add_compile_definitions(CMAKE_EXPORT_COMPILE_COMMANDS)  # For better `clangd` scanning.
 
+if(USE_AVX_512)
+    add_compile_definitions(USE_AVX_512)
+endif()
+
 
 # Set other compile-time definitions.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

@@ -335,11 +335,16 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP(const char* const x, const char*
     }
     else
     {
-        while((ctx - lcp) >= N * 32)
+#ifndef USE_AVX_512
+        constexpr std::size_t stride = 32;
+#else
+        constexpr std::size_t stride = 64;
+#endif
+        while((ctx - lcp) >= N * stride)
         {
             const auto l = LCP_unrolled<N>(x + lcp, y + lcp);
             lcp += l;
-            if(l < N * 32)
+            if(l < N * stride)
                 return lcp;
         }
 
@@ -356,14 +361,24 @@ inline T_idx_ Suffix_Array<T_seq_, T_idx_>::LCP_unrolled(const char* const x, co
         return 0;
     else
     {
+#ifndef USE_AVX_512
         const auto v1 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(x));
         const auto v2 = simde_mm256_loadu_si256(reinterpret_cast<const simde__m256i*>(y));
         const auto cmp = simde_mm256_cmpeq_epi8(v1, v2);
         const auto mask = static_cast<uint32_t>(simde_mm256_movemask_epi8(cmp));
-        if(mask != 0xFFFFFFFF)
+        if(mask != 0xFFFF'FFFF)
             return __builtin_ctz(~mask);
 
         return 32 + LCP_unrolled<N - 1>(x + 32, y + 32);
+#else
+        const auto v1 = simde_mm512_loadu_si512(x);
+        const auto v2 = simde_mm512_loadu_si512(y);
+        const auto mask = simde_mm512_cmpeq_epi8_mask(v1, v2);
+        if(mask != 0xFFFF'FFFF'FFFF'FFFFull)
+            return __builtin_ctzll(~mask);
+
+        return 64 + LCP_unrolled<N - 1>(x + 64, y + 64);
+#endif
     }
 }
 
