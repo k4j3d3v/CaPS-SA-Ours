@@ -18,7 +18,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-
 if(ASAN OR UBSAN)
     set(CLANG TRUE)
 endif()
@@ -51,7 +50,6 @@ set(UBSAN_FLAGS -fsanitize=undefined
 # Extra optimization flags not associated to the `-O` levels.
 set(OPTIMIZE_FLAGS -Ofast -funroll-loops -march=native)
 
-
 # Accumulate the compile- and link-flags.
 set(COMPILE_FLAGS "")
 set(LINK_FLAGS "")
@@ -72,7 +70,6 @@ endif()
 if(DEBUG_INFO)
     list(APPEND COMPILE_FLAGS ${DEBUG_FLAGS})
 endif()
-
 
 # Detect the OS.
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -120,7 +117,6 @@ endif()
 message(STATUS "Operating System: ${OS_NAME}")
 message(STATUS "Architecture: ${ARCHITECTURE}")
 
-
 # Add the required preprocessor definitions (`#define`s) to pass on.
 add_compile_definitions(CMAKE_EXPORT_COMPILE_COMMANDS)  # For better `clangd` scanning.
 
@@ -132,7 +128,6 @@ if(CAPS_SA_QUIET)
     message("Compiling CaPS-SA with silenced logging.")
     add_compile_definitions(CAPS_SA_QUIET)
 endif()
-
 
 if(OS_NAME STREQUAL "Linux")
     execute_process(
@@ -167,7 +162,6 @@ if(ARCHITECTURE STREQUAL "x86_64")
     add_compile_definitions(NATIVE_SIMD)
 endif()
 
-
 # Determine the thread library of the system.
 include(FindThreads)
 if(NOT Threads_FOUND)
@@ -179,7 +173,6 @@ include(ExternalProject)
 
 set(EXT_INCLUDE ${CAPS_SA_LIB_PROJECT_PATH}/external/include)
 file(MAKE_DIRECTORY ${EXT_INCLUDE})
-
 
 # Prepare the `parlay` library—a parallel algorithms programming toolkit.
 message("Build system will fetch and install parlaylib")
@@ -218,7 +211,6 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build Type" FORCE)
 endif()
-
 
 # Add `src` to the build.
 add_subdirectory(src)
