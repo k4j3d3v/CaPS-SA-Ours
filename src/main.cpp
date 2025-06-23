@@ -47,39 +47,41 @@ int construct_and_dump_sa_helper(
     for(std::size_t i = 0; i < 7; ++i)
         text.push_back(sentinel);
 
-    std::ofstream output(op_path);
-    const auto construct = [&](auto sz)
+    const auto construct = [&](const auto& sa)
     {
-        if(!genomic)
+        typedef std::remove_reference_t<decltype(sa)> const_var;
+        typedef std::remove_const_t<const_var> var;
+
+        auto& suf_arr = *const_cast<var*>(&sa);
+        ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
+
+        std::ofstream output(op_path);
+        if (ext_mem and collate_extmem_result)
         {
-            CaPS_SA::Suffix_Array<T_seq_, decltype(sz)> suf_arr(text.data(), sz, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp);
-            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
-            if (ext_mem and collate_extmem_result) {
-                suf_arr.dump(output);
-                suf_arr.remove_extmem_partitions();
-            } else {
-                suf_arr.dump(output);
-            }
+            suf_arr.dump(output);
+            suf_arr.remove_extmem_partitions();
         }
         else
-        {
-            assert((std::is_same<T_seq_, char>::value));
+            suf_arr.dump(output);
 
-            const CaPS_SA::Genomic_Text G(reinterpret_cast<const char*>(text.data()), sz);
-            CaPS_SA::Suffix_Array<CaPS_SA::Genomic_Text, decltype(sz)> suf_arr(&G, sz, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp);
-            ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
-            if (ext_mem and collate_extmem_result) {
-                suf_arr.dump(output);
-                suf_arr.remove_extmem_partitions();
-            } else {
-                suf_arr.dump(output);
-            }
-        }
+        output.close();
     };
 
-    n <= std::numeric_limits<uint32_t>::max() ? construct(static_cast<uint32_t>(n)) : construct(static_cast<uint64_t>(n));
+    using namespace CaPS_SA;
+    if(!genomic)
+        n <= std::numeric_limits<uint32_t>::max() ?
+            construct(Suffix_Array<T_seq_, uint32_t>(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp)) :
+            construct(Suffix_Array<T_seq_, uint64_t>(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp));
+    else
+    {
+        assert((std::is_same<T_seq_, char>::value));
 
-    output.close();
+        const Genomic_Text G(reinterpret_cast<const char*>(text.data()), n);
+        n <= std::numeric_limits<uint32_t>::max() ?
+            construct(Suffix_Array<Genomic_Text, uint32_t>(&G, n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp)) :
+            construct(Suffix_Array<Genomic_Text, uint64_t>(&G, n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp));
+    }
+
     return 0;
 }
 
