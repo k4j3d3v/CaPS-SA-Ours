@@ -248,6 +248,8 @@ public:
 
     // Dumps the SA and the LCP-array into the stream `output`.
     void dump(std::ofstream& output) const;
+    // Dumps the SA and the LCP-array into the stream `output`.
+    void dump_separate(std::ofstream& output_sa, std::ofstream& output_lcp) const;
 
     // Returns `true` iff the SA (and the LCP-array, if retained) are
     // correct.

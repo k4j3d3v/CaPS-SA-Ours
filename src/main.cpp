@@ -21,9 +21,9 @@ void pretty_print(const CaPS_SA::Suffix_Array<T_seq_, T_idx_>& suf_arr, std::ofs
 {
     const std::size_t n = suf_arr.n();
     for(std::size_t i = 0; i < n; ++i)
-        output << suf_arr.SA()[i] << " \n"[i == n - 1];
-    for(std::size_t i = 0; i < n; ++i)
-        output << suf_arr.LCP()[i] << " \n"[i == n - 1];
+        output << "SA[" << i << "]: " << suf_arr.SA()[i]<<"= "<< suf_arr.text()[suf_arr.SA()[i]] << " \n"[i == n - 1];
+    // for(std::size_t i = 0; i < n; ++i)
+    //     output << suf_arr.LCP()[i] << " \n"[i == n - 1];
 }
 
 template <typename T_seq_>
@@ -55,23 +55,37 @@ int construct_and_dump_sa_helper(
         auto& suf_arr = *const_cast<var*>(&sa);
         ext_mem ? suf_arr.construct_ext_mem() : suf_arr.construct();
 
+        const std::string lcp_path = op_path + ".lcp";
         std::ofstream output(op_path);
+        std::ofstream output_lcp(lcp_path);
         if (ext_mem and collate_extmem_result)
         {
             suf_arr.dump(output);
             suf_arr.remove_extmem_partitions();
         }
         else
-            suf_arr.dump(output);
+            suf_arr.dump_separate(output, output_lcp);
 
+        // pretty_print(suf_arr, std::cout);
         output.close();
+        output_lcp.close();
     };
 
     using namespace CaPS_SA;
     if(!genomic)
-        n <= std::numeric_limits<uint32_t>::max() ?
-            construct(Suffix_Array<T_seq_, uint32_t>(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp)) :
+    {
+        std::cout<<"Constructing SA for integer text\n";
+        if(n <= std::numeric_limits<uint32_t>::max())
+        {
+            std::cout<<"Using 32-bit SA\n";
+            construct(Suffix_Array<T_seq_, uint32_t>(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp));
+        }
+        else
+        {
+            std::cout<<"Using 64-bit SA\n"; 
             construct(Suffix_Array<T_seq_, uint64_t>(text.data(), n, ext_mem, ext_mem_path, subproblem_count, max_context, output_lcp));
+        }
+    }
     else
     {
         assert((std::is_same<T_seq_, char>::value));
@@ -98,9 +112,10 @@ int construct_and_dump_sa(
 {
     if(input_t == "t" || input_t == "g")
     {
-        std::vector<char> text;
-        CaPS_SA::read_input<char>(ip_path, text);
-        construct_and_dump_sa_helper<char>(text, op_path, ext_mem_path, subproblem_count, max_context, input_t == "g", ext_mem, output_lcp, collate_extmem_result);
+        // QUIIII
+        std::vector<uint8_t> text;
+        CaPS_SA::read_input<uint8_t>(ip_path, text);
+        construct_and_dump_sa_helper<uint8_t>(text, op_path, ext_mem_path, subproblem_count, max_context, input_t == "g", ext_mem, output_lcp, collate_extmem_result);
     }
     else
     {

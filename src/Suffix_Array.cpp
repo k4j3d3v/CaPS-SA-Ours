@@ -906,6 +906,45 @@ void Suffix_Array<T_seq_, T_idx_>::dump(std::ofstream& output) const
     (void)t_start; (void)t_end;
     CAPS_SA_LOG(std::cerr << "Dumped the suffix array. Time taken: " << duration(t_end - t_start) << " seconds.\n");
 }
+template <typename T_seq_, typename T_idx_>
+void Suffix_Array<T_seq_, T_idx_>::dump_separate(std::ofstream& output_sa, std::ofstream& output_lcp) const 
+{
+    const auto t_start = now();
+
+    const std::size_t n = n_;
+
+    if(!ext_mem_ctr_)
+    {
+        std::cout<<"Dumping SA and LCP to separate files\n LCP[1] = "<<LCP_[1]<<std::endl;
+        output_sa.write(reinterpret_cast<const char*>(SA_), n_ * sizeof(idx_t));
+        if(op_lcp)
+            output_lcp.write(reinterpret_cast<const char*>(LCP_), n_ * sizeof(idx_t));
+    }
+    else
+    {
+        for(idx_t p_id = 0; p_id < p_; ++p_id)
+        {
+            std::ifstream input(SA_bucket_file_path(p_id));
+            assert(input.peek() != EOF);
+            output_sa << input.rdbuf();
+            input.close();
+        }
+
+        if(op_lcp)
+            for(idx_t p_id = 0; p_id < p_; ++p_id)
+            {
+                std::ifstream input(LCP_bucket_file_path(p_id));
+                assert(input.peek() != EOF);
+                output_lcp << input.rdbuf();
+                input.close();
+            }
+
+    }
+
+    const auto t_end = now();
+    (void)t_start; (void)t_end;
+    CAPS_SA_LOG(std::cerr << "Dumped the suffix array. Time taken: " << duration(t_end - t_start) << " seconds.\n");
+}
 
 
 template <typename T_seq_, typename T_idx_>
@@ -1067,6 +1106,8 @@ bool Suffix_Array<T_seq_, T_idx_>::is_correct()
 // Template instantiations for the required instances.
 template class CaPS_SA::Suffix_Array<char, uint32_t>;
 template class CaPS_SA::Suffix_Array<char, uint64_t>;
+template class CaPS_SA::Suffix_Array<uint8_t, uint32_t>;
+template class CaPS_SA::Suffix_Array<uint8_t, uint64_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint32_t>;
 template class CaPS_SA::Suffix_Array<uint32_t, uint64_t>;
 template class CaPS_SA::Suffix_Array<uint64_t, uint32_t>;
