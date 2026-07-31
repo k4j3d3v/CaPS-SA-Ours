@@ -98,9 +98,17 @@ int construct_and_dump_sa_helper(
 
     return 0;
 }
+uint64_t stream_size(std::istream& is) {
+    auto pos = is.tellg();
+    is.seekg(0, std::ios::end);
+    auto size = is.tellg();
+    is.seekg(pos);
+    return static_cast<uint64_t>(size);
+}
 
 int construct_and_dump_sa(
         std::string input_t, 
+        std::string symbol_width, 
         const std::string& ip_path, 
         const std::string& op_path, 
         const std::string& ext_mem_path, 
@@ -124,19 +132,27 @@ int construct_and_dump_sa(
             std::cerr << ip_path << " : could not be opened\n";
             std::exit(EXIT_FAILURE);
         }
-        uint64_t length;
-        uint64_t max_char;
-        input.read(reinterpret_cast<char*>(&length), sizeof(length));
-        input.read(reinterpret_cast<char*>(&max_char), sizeof(max_char));
+    
+        uint64_t length = stream_size(input);
+        std::cerr << "Input file size: " << length << " bytes.\n";
 
-        if (max_char >= std::numeric_limits<int32_t>::max()) {
+        // uint64_t max_char;
+        // input.read(reinterpret_cast<char*>(&length), sizeof(length));
+        // input.read(reinterpret_cast<char*>(&max_char), sizeof(max_char));
+
+        if (symbol_width == "64") {
+            std::cerr << "Input data type: 64-bit integer.\n";
             std::vector<uint64_t> text;
+            length /= sizeof(uint64_t);
             text.resize(length);
             input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint64_t));
             construct_and_dump_sa_helper<uint64_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false, ext_mem, output_lcp, collate_extmem_result);
             input.close();
         } else {
+            std::cerr << "Input data type: 32-bit integer.\n";
+
             std::vector<uint32_t> text;
+            length /= sizeof(uint32_t);
             text.resize(length);
             input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint32_t));
             construct_and_dump_sa_helper<uint32_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false, ext_mem, output_lcp, collate_extmem_result);
@@ -172,6 +188,13 @@ int main(int argc, char* argv[])
             return std::string("The provided argument to --data-type is invalid, it must be one of t, g, or i.");
         }
     });
+    std::string symbol_width = "32";
+
+    app.add_option(
+        "--symbol-width",
+        symbol_width,
+        "Symbol width for integer inputs (32 or 64)"
+    )->check(CLI::IsMember({"32", "64"}));
 
     bool ext_mem = false;
     auto ext_mem_flag = app.add_flag("--ext-mem", ext_mem, "pass this flag to use external memor construction");
@@ -191,7 +214,7 @@ int main(int argc, char* argv[])
     CLI11_PARSE(app, argc, argv);
    
     std::string ext_mem_prefix = ext_mem ? op_path : "";
-    return construct_and_dump_sa(data_type, ip_path, op_path, ext_mem_prefix, subproblem_count, max_context, ext_mem, output_lcp, collate_extmem_result);
+    return construct_and_dump_sa(data_type, symbol_width, ip_path, op_path, ext_mem_prefix, subproblem_count, max_context, ext_mem, output_lcp, collate_extmem_result);
 }
 
 
