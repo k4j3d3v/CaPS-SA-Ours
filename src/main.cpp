@@ -140,13 +140,13 @@ int construct_and_dump_sa(
         // input.read(reinterpret_cast<char*>(&length), sizeof(length));
         // input.read(reinterpret_cast<char*>(&max_char), sizeof(max_char));
 
-        if (symbol_width == "64") {
-            std::cerr << "Input data type: 64-bit integer.\n";
-            std::vector<uint64_t> text;
-            length /= sizeof(uint64_t);
+        if (symbol_width == "16") {
+            std::cerr << "Input data type: 16-bit integer.\n";
+            std::vector<uint16_t> text;
+            length /= sizeof(uint16_t);
             text.resize(length);
-            input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint64_t));
-            construct_and_dump_sa_helper<uint64_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false, ext_mem, output_lcp, collate_extmem_result);
+            input.read(reinterpret_cast<char*>(text.data()), length * sizeof(uint16_t));
+            construct_and_dump_sa_helper<uint16_t>(text, op_path, ext_mem_path, subproblem_count, max_context, false, ext_mem, output_lcp, collate_extmem_result);
             input.close();
         } else {
             std::cerr << "Input data type: 32-bit integer.\n";
@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
     app.add_option("output", op_path, "output path")->required();
 
     std::string data_type = "t";
-    app.add_option("--data-type", data_type, "type of input data [text (defualt): \"t\", genomic: \"g\", or integer: \"i\"]")->check( [](const std::string &s) -> std::string {
+    app.add_option("--data", data_type, "type of input data [text (default): \"t\", genomic: \"g\", or integer: \"i\"]")->check( [](const std::string &s) -> std::string {
         if (s == "t" or s == "g" or s == "i") {
             return "";
         } else {
