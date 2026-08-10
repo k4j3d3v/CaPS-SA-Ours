@@ -181,26 +181,30 @@ int main(int argc, char* argv[])
     app.add_option("output", op_path, "output path")->required();
 
     std::string data_type = "t";
-    app.add_option("--data-type", data_type, "type of input data [text: \"t\", genomic: \"g\", or integer: \"i\"]")->check( [](const std::string &s) -> std::string {
+    app.add_option("--data-type", data_type, "type of input data [text (defualt): \"t\", genomic: \"g\", or integer: \"i\"]")->check( [](const std::string &s) -> std::string {
         if (s == "t" or s == "g" or s == "i") {
             return "";
         } else {
             return std::string("The provided argument to --data-type is invalid, it must be one of t, g, or i.");
         }
     });
+
     std::string symbol_width = "32";
-
     app.add_option(
-        "--symbol-width",
+        "--bits",
         symbol_width,
-        "Symbol width for integer inputs (32 or 64)"
-    )->check(CLI::IsMember({"32", "64"}));
+        "Symbol width for integer inputs (32 or 16)"
+    )->check(CLI::IsMember({"32", "16"}));
 
-    bool ext_mem = false;
-    auto ext_mem_flag = app.add_flag("--ext-mem", ext_mem, "pass this flag to use external memor construction");
+    std::size_t threads = 1;
+    app.add_option("--threads", threads, "number of threads to use")->default_val("1");
 
     bool output_lcp = false;
-    app.add_flag("--output-lcp", output_lcp, "pass this flag to output the LCP array along with the SA");
+    app.add_flag("--lcp", output_lcp, "pass this flag to output the LCP array along with the SA");
+
+   
+    bool ext_mem = false;
+    auto ext_mem_flag = app.add_flag("--ext-mem", ext_mem, "pass this flag to use external memor construction");
  
     bool collate_extmem_result = false;
     app.add_flag("--collate-extmem-result", collate_extmem_result, "collate the external memory buckets into a single file")->needs(ext_mem_flag);
@@ -211,8 +215,6 @@ int main(int argc, char* argv[])
     std::size_t max_context = 0;
     app.add_option("--bounded-context", max_context, "bounded context to use (default: unlimited)");
 
-    std::size_t threads = 1;
-    app.add_option("--threads", threads, "number of threads to use")->default_val("1");
 
     CLI11_PARSE(app, argc, argv);
 
