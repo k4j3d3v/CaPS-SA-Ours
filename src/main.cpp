@@ -189,11 +189,11 @@ int main(int argc, char* argv[])
         }
     });
 
-    std::string symbol_width = "32";
+    std::string symbol_width = "16";
     app.add_option(
         "--bits",
         symbol_width,
-        "Symbol width for integer inputs (32 or 16)"
+        "Symbol width for integer inputs (16 (default) or 32)"
     )->check(CLI::IsMember({"32", "16"}));
 
     std::size_t threads = 1;
