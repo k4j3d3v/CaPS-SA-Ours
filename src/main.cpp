@@ -211,7 +211,12 @@ int main(int argc, char* argv[])
     std::size_t max_context = 0;
     app.add_option("--bounded-context", max_context, "bounded context to use (default: unlimited)");
 
+    std::size_t threads = 1;
+    app.add_option("--threads", threads, "number of threads to use")->default_val("1");
+
     CLI11_PARSE(app, argc, argv);
+
+    setenv("PARLAY_NUM_THREADS", std::to_string(threads).c_str(), 1);
    
     std::string ext_mem_prefix = ext_mem ? op_path : "";
     return construct_and_dump_sa(data_type, symbol_width, ip_path, op_path, ext_mem_prefix, subproblem_count, max_context, ext_mem, output_lcp, collate_extmem_result);

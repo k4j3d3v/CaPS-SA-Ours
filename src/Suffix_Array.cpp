@@ -206,7 +206,7 @@ void Suffix_Array<T_seq_, T_idx_>::sort_subarrays()
 
             assert(is_sorted(SA_ + i * subarr_size, subarr_size + (i < p_ - 1 ? 0 : n_ % p_), LCP_ + i * subarr_size));
 
-            if(++solved_ % 8 == 0)
+            if(++solved_ % 8000 == 0)
                 CAPS_SA_LOG(std::cerr << "\rSorted " << solved_ << " subarrays.");
         };
 
@@ -574,7 +574,7 @@ void Suffix_Array<T_seq_, T_idx_>::merge_sub_subarrays()
 
             sort_partition(X_j, Y_j, p_, sub_subarr_off, LCP_X_j, LCP_Y_j);
 
-            if(++solved_ % 8 == 0)
+            if(++solved_ % 8000 == 0)
                CAPS_SA_LOG(std::cerr << "\rMerged " << solved_ << " partitions.");
         };
 

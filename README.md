@@ -15,9 +15,7 @@ make install VERBOSE=1
 cd ..
 ```
 
-This installs `caps_sa` in a sub-directory named `bin`, inside the project root directory.
-To test:
-
+This installs `caps_sa` in a sub-directory named `bin`, inside the project root directory. To test:
 ```bash
 bin/caps_sa --help
 ```
@@ -46,25 +44,22 @@ OPTIONS:
                               subproblem count to use 
           --bounded-context UINT 
                               bounded context to use (default: unlimited) 
+          --threads UINT [1]  number of threads to use 
 ```
 
 ## Usage
 
-Set the number of threads to be used:
-```bash
-export PARLAY_NUM_THREADS=<thread-count>
-```
 
-To compute the SA and LCP array of a uint8 sequence:
+To compute the SA and LCP array of a uint8 sequence with 4 threads:
 ```bash
-bin/caps_sa  README.md README.md.sa --output-lcp 
+bin/caps_sa  README.md README.md.sa --output-lcp --threads 4
 ```
 this produces the file `README.md.sa` and `README.md.sa.lcp`
 
 For uint8 input files smaller than $2**32$ the SA and LCP array are 4x the size of the input, for files larger than $2**32$  SA and LCP array are 8x the size of the input
 
 
-### From the old usage instruction
 
+### From the old usage instruction
 
 Note that by default the subproblem count is set to 8000. If `caps_sa` is run on small datasets it may produce a segmentation fault if a given subproblem is of size 0. Future releases will dynamically set subproblem count, but as of the version 1 release, please use a small subproblem count for datasets significantly smaller than the human genome.
