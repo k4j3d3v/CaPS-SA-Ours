@@ -1,0 +1,67 @@
+#!/bin/bash
+
+if [ $# -lt 3 ] 
+then
+  echo Usage: $0 program corpus options_file [numruns def. 4]
+  exit 0
+fi
+
+# This script runs $program over all files in $corpus for the set of options 
+# store in $options_file (one set per line, each line terminated by end). 
+# Each test is run by `fulltest` $numruns times to collect execution statistics.
+# Execution statistics are stored in $corpus.ris and later processed 
+# by `fullstat` to produce a report in $program.ris.
+
+# the task is done calling fulltest and fullstat
+# the output is a sort of latex table for each set of options in options_file
+# containing 
+#  file names
+#  file sizes
+#  average elapsed time
+#  average peak space for input byte
+#  average system time
+#  average user time
+# The output also shos the average total time for the files in the corpus
+# for a quick evaluation of which are the the fastest options
+
+# the scripts rely  on the fact that the strings #@#> and #@#! do not appear in the program output
+# !!! not very robust in case of errors
+
+if [ $# -lt 4 ] 
+then
+  numruns=4
+else
+  numruns=$4
+fi
+
+program=$1
+corpus=$2
+options_file=$3
+
+echo "*** Begin full test ***" >> $program.ris
+echo Experiment run on `date` on `hostname` >> $program.ris
+
+
+# execute fulltest/fulstat for each set of options 
+
+options=""
+for word in `cat $options_file`;
+do
+  if [ "$word" == "end" ]      # "end" terminates a list of options
+  then  
+    echo Executing $program $options on corpus $corpus >> $program.ris 
+    fulltest $program $corpus $numruns $options &> $corpus.ris
+    if [ $? -ne 0 ]; then
+      echo "Error executing fulltest $program $corpus $options" >> $program.ris
+      exit 3
+    fi
+    fullstat < $corpus.ris >> $program.ris
+    options=""
+  else
+    options="$options $word"
+  fi
+done
+
+echo "*** End full test ***" >> $program.ris
+
+exit 0

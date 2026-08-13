@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# This program runs an algorithm with options for all files in a corpus 
+# Its output is processed by fullstat
+
+if [ "$#" -lt 3 ]; then
+    echo "Usage: $0 algorithm corpus numruns [options]"
+    exit 1
+fi
+
+if [ "$#" -gt 3 ]; then
+    options="${@:4}"
+else
+    options=""
+fi
+
+
+program="$1"
+corpus="$2"
+speed_exps=$3  # number of times program is run to determine speed.
+
+# Build list of file names
+files=""
+while IFS= read -r filename; do
+    files="$files $corpus/$filename"
+done < "$corpus/.index"
+
+end_of_file='--xx--'
+end_of_benchmark='--==--'
+
+echo "Experiment run by $(whoami) at $(date) on $(hostname)"
+echo "Experiments with algorithm $program $options on corpus $corpus"
+
+num=$(echo $files | wc -w)
+echo "$num files in corpus"
+echo "$speed_exps time measurements"
+
+###### This is where we run the algorithm 
+for file in $files; do
+    name=$(basename $file)
+    echo "#@#! ${name%.*}  $(stat -c%s $file)"
+    i=$speed_exps
+    while [ $i -gt 0 ]; do
+        /usr/bin/time -f"Command %C\n#@#> E:%e: M:%M: S:%S: U:%U:" $program $options "$file"
+        if [ $? -ne 0 ]; then
+            echo "Error working on file $file"
+            exit 2
+        fi
+        ((i--))
+    done
+    echo "$end_of_file"
+done
+echo "$end_of_benchmark"
+exit 0

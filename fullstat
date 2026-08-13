@@ -1,0 +1,70 @@
+#!/bin/env python3
+import sys
+
+# process the output of fulltest (taken from stdin) and build a latex table
+
+
+def main():
+    format_spec = "7.2f"
+    format_int = "7"
+    
+    # Skip first two lines
+    next(sys.stdin)
+    next(sys.stdin)
+
+    # Get the number of files and runs
+    files_line = next(sys.stdin).strip()
+    files = int(files_line.split()[0])
+    
+    runs_line = next(sys.stdin).strip()
+    runs = int(runs_line.split()[0])
+    total_time= 0
+    totals = 6*[0]
+    print(f"Average over {runs} tests")
+
+    table = ["Name:  ", "SizMB: ", "Elpsd: ", "MemPR: ", "Sys:   ", "User:  "]
+    # Compute average
+    for _ in range(files):
+        # wait for name and size
+        while(True):
+            line = next(sys.stdin)
+            if line.startswith("#@#!"):
+               v = line.split()
+               table[0] += f"&{v[1]} "
+               table[1] += f"&{int(int(v[2])/10**6+0.5):{format_int}} "
+               filesize = int(v[2]) # size of input file
+               break
+        # compute average    
+        stats = 4*[0]
+        totals[1] += filesize
+        for _ in range(runs):
+            while(True):
+                line = next(sys.stdin)
+                if line.startswith("#@#>"): # these are the only lines we care
+                  values = line.split(":")
+                  total_time += float(values[1])
+                  for i in range(4):
+                    v = float(values[2*i+1])
+                    stats[i] += v
+                  break
+        for i in range(4):
+            #if i==1: table[2+i] += f"&{int((stats[i]*1024)/(runs*10**6)+0.5)} "
+            if i==1: 
+               table[2+i] += f"&{(stats[i]*1024)/(runs*filesize):{format_spec}} "
+               totals[2+i] += (stats[i]*1024)/(runs*filesize)
+            else:    
+               table[2+i] += f"&{stats[i]/runs:{format_spec}} "
+               totals[2+i] += stats[i]
+
+    table[0] += f"&Average "
+    table[1] += f"&{((totals[1])/(10**6*files)):{format_spec}} " 
+    table[2] += f"&{totals[2]/(runs*files):{format_spec}} "
+    table[3] += f"&{totals[3]/(files):{format_spec}} "
+    table[4] += f"&{totals[4]/(runs*files):{format_spec}} "
+    table[5] += f"&{totals[5]/(runs*files):{format_spec}} "
+    for i in range(6):
+       print(table[i] + "\\\\ \\hline")
+    print(f"% Average total time (secs): {total_time/runs:{format_spec}}")
+
+if __name__ == "__main__":
+    main()
